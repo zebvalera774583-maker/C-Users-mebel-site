@@ -9,11 +9,15 @@ export default function HomePage() {
   return (
     <main className="wrap">
       <div className="card">
-        {/* TOP BUTTONS */}
-        <div className="topActions">
-          <button className="chip">Кнопка 1</button>
-          <button className="chip">Кнопка 2</button>
-          <button className="chip">Кнопка 3</button>
+
+        {/* TOP BAR */}
+        <div className="topBar">
+          <div className="brand">Ashot Zebelyan</div>
+          <div className="topActions">
+            <button className="chip">Кнопка 1</button>
+            <button className="chip">Кнопка 2</button>
+            <button className="chip">Кнопка 3</button>
+          </div>
         </div>
 
         {/* HEADER */}
@@ -29,7 +33,9 @@ export default function HomePage() {
                 <li>Комплектация</li>
               </ul>
 
-              <div className="cities">Москва – Сочи – Краснодар – Санкт-Петербург</div>
+              <div className="cities">
+                Москва – Сочи – Краснодар – Санкт-Петербург
+              </div>
             </div>
           </div>
 
@@ -52,35 +58,45 @@ export default function HomePage() {
                 key={i}
                 className="tile"
                 onClick={() => inputRef.current?.click()}
-                title="Нажми, чтобы выбрать фото"
               >
                 <span className="plus">+</span>
               </button>
             ))}
           </div>
         </section>
+
       </div>
 
       <style jsx>{`
         .wrap {
           min-height: 100vh;
           background: #f6f7f8;
-          padding: 24px 18px 40px;
+          padding: 24px 18px 60px;
           font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial;
           color: #111;
         }
 
-        /* ВИЗИТКА: фиксированная ширина, как в первом варианте */
         .card {
           max-width: 920px;
           margin: 0 auto;
         }
 
+        /* TOP BAR */
+        .topBar {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 22px;
+        }
+
+        .brand {
+          font-size: 18px;
+          font-weight: 600;
+        }
+
         .topActions {
           display: flex;
-          justify-content: flex-end;
           gap: 10px;
-          margin-bottom: 18px;
         }
 
         .chip {
@@ -92,19 +108,18 @@ export default function HomePage() {
           cursor: pointer;
         }
 
+        /* HEADER */
         .header {
           display: grid;
           grid-template-columns: 1fr auto;
-          align-items: start;
           gap: 18px;
-          padding: 6px 0 0;
+          align-items: start;
         }
 
         .left {
           display: grid;
           grid-template-columns: 96px 1fr;
           gap: 18px;
-          align-items: start;
         }
 
         .avatar {
@@ -128,19 +143,18 @@ export default function HomePage() {
         }
 
         .cities {
-          margin-top: 10px;
+          margin-top: 14px;
           font-size: 13px;
           color: rgba(0, 0, 0, 0.6);
         }
 
         .right {
-          padding-top: 42px; /* чтобы кнопки были на уровне как на макете */
+          padding-top: 40px;
         }
 
         .ctaRow {
           display: flex;
           gap: 12px;
-          justify-content: flex-end;
         }
 
         .btn {
@@ -162,8 +176,9 @@ export default function HomePage() {
           border: 1px solid #111;
         }
 
+        /* GALLERY */
         .gallery {
-          margin-top: 22px;
+          margin-top: 48px; /* УВЕЛИЧЕН ОТСТУП */
         }
 
         .grid {
@@ -188,16 +203,22 @@ export default function HomePage() {
           user-select: none;
         }
 
-        /* Адаптация под телефон */
         @media (max-width: 720px) {
+          .topBar {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 12px;
+          }
+
           .header {
             grid-template-columns: 1fr;
           }
+
           .right {
-            padding-top: 10px;
+            padding-top: 12px;
           }
+
           .ctaRow {
-            justify-content: flex-start;
             flex-wrap: wrap;
           }
         }
