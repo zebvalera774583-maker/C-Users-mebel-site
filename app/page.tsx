@@ -1,35 +1,210 @@
-export default function HomePage() {
-  return (
-    <main style={{ padding: 24, fontFamily: "system-ui, Arial" }}>
-      <h1 style={{ fontSize: 32, marginBottom: 8 }}>Ashot Zebelyan</h1>
-      <p style={{ opacity: 0.8, marginBottom: 24 }}>Мебель на заказ</p>
+"use client";
 
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
-          gap: 12,
-          maxWidth: 720,
-        }}
-      >
-        {Array.from({ length: 18 }).map((_, i) => (
-          <button
-            key={i}
-            style={{
-              aspectRatio: "1 / 1",
-              borderRadius: 18,
-              border: "1px solid rgba(0,0,0,0.12)",
-              background: "white",
-              cursor: "pointer",
-              fontSize: 14,
-            }}
-            title="Скоро здесь будет фото"
-          >
-            +
-          </button>
-        ))}
+import { useRef } from "react";
+
+export default function HomePage() {
+  const inputRef = useRef<HTMLInputElement | null>(null);
+
+  const tiles = Array.from({ length: 18 });
+
+  const openPicker = () => {
+    inputRef.current?.click();
+  };
+
+  return (
+    <main className="wrap">
+      {/* TOP ACTIONS */}
+      <div className="topActions">
+        <button className="chip">Кнопка 1</button>
+        <button className="chip">Кнопка 2</button>
+        <button className="chip">Кнопка 3</button>
       </div>
+
+      {/* HERO */}
+      <section className="hero">
+        <div className="avatar" aria-hidden="true" />
+        <div className="heroText">
+          <h1 className="title">Проектная реализация</h1>
+
+          <ul className="list">
+            <li>Дизайн интерьера</li>
+            <li>Мебель на заказ</li>
+            <li>Комплектация</li>
+          </ul>
+
+          <div className="cities">Москва – Сочи – Краснодар – Санкт-Петербург</div>
+        </div>
+      </section>
+
+      {/* CTA */}
+      <div className="ctaRow">
+        <button className="btn ghost">Поделиться</button>
+        <button className="btn ghost">Контакты</button>
+        <button className="btn primary">Связаться</button>
+      </div>
+
+      {/* GALLERY */}
+      <section className="gallery">
+        <div className="galleryTitle">Примеры работ</div>
+
+        {/* hidden input for future uploads */}
+        <input
+          ref={inputRef}
+          type="file"
+          accept="image/*"
+          multiple
+          style={{ display: "none" }}
+          onChange={() => {
+            // позже подключим реальную загрузку и сохранение
+          }}
+        />
+
+        <div className="grid">
+          {tiles.map((_, i) => (
+            <button
+              key={i}
+              className="tile"
+              onClick={openPicker}
+              title="Нажми, чтобы выбрать фото"
+            >
+              <span className="plus">+</span>
+            </button>
+          ))}
+        </div>
+
+        <div className="hint">
+          Нажми на любой квадрат, чтобы выбрать фото (пока без сохранения — подключим
+          следующим шагом).
+        </div>
+      </section>
+
+      <style jsx>{`
+        .wrap {
+          min-height: 100vh;
+          padding: 28px 18px 40px;
+          background: #f6f7f8;
+          color: #111;
+          font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial;
+        }
+
+        .topActions {
+          display: flex;
+          justify-content: flex-end;
+          gap: 10px;
+          margin-bottom: 26px;
+        }
+
+        .chip {
+          border: 1px solid rgba(0, 0, 0, 0.12);
+          background: white;
+          border-radius: 999px;
+          padding: 10px 16px;
+          font-size: 14px;
+          cursor: pointer;
+        }
+
+        .hero {
+          display: grid;
+          grid-template-columns: 110px 1fr;
+          gap: 22px;
+          align-items: start;
+          padding: 14px 6px;
+        }
+
+        .avatar {
+          width: 96px;
+          height: 96px;
+          border-radius: 999px;
+          background: #e2e2e2;
+          margin-top: 6px;
+        }
+
+        .title {
+          font-size: 22px;
+          font-weight: 650;
+          margin: 0 0 8px;
+        }
+
+        .list {
+          margin: 0;
+          padding-left: 18px;
+          line-height: 1.55;
+          font-size: 16px;
+        }
+
+        .cities {
+          margin-top: 10px;
+          font-size: 13px;
+          opacity: 0.7;
+        }
+
+        .ctaRow {
+          display: flex;
+          justify-content: flex-end;
+          gap: 12px;
+          margin-top: 18px;
+          padding: 10px 6px 0;
+        }
+
+        .btn {
+          border-radius: 999px;
+          padding: 12px 18px;
+          font-size: 14px;
+          cursor: pointer;
+        }
+
+        .ghost {
+          background: white;
+          border: 1px solid rgba(0, 0, 0, 0.12);
+        }
+
+        .primary {
+          background: #111;
+          color: white;
+          border: 1px solid #111;
+        }
+
+        .gallery {
+          margin-top: 26px;
+          padding: 0 6px;
+        }
+
+        .galleryTitle {
+          font-size: 14px;
+          font-weight: 650;
+          opacity: 0.8;
+          margin-bottom: 12px;
+        }
+
+        .grid {
+          display: grid;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          gap: 12px;
+          max-width: 820px;
+        }
+
+        .tile {
+          aspect-ratio: 1 / 1;
+          border-radius: 18px;
+          border: 1px solid rgba(0, 0, 0, 0.12);
+          background: white;
+          display: grid;
+          place-items: center;
+          cursor: pointer;
+        }
+
+        .plus {
+          font-size: 18px;
+          opacity: 0.45;
+          user-select: none;
+        }
+
+        .hint {
+          margin-top: 10px;
+          font-size: 12px;
+          opacity: 0.6;
+        }
+      `}</style>
     </main>
   );
 }
-
