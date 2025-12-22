@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef } from "react";
+import Image from "next/image";
 
 export default function HomePage() {
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -13,17 +14,27 @@ export default function HomePage() {
         {/* TOP BAR */}
         <div className="topBar">
           <div className="brand">Ashot Zebelyan</div>
+
           <div className="topActions">
-            <button className="chip">Кнопка 1</button>
-            <button className="chip">Кнопка 2</button>
-            <button className="chip">Кнопка 3</button>
+            <button className="chip">40 уникальных кейсов</button>
+            <button className="chip">2578 проектов</button>
+            <button className="chip">4 города</button>
           </div>
         </div>
 
         {/* HEADER */}
         <div className="header">
           <div className="left">
-            <div className="avatar" />
+            <div className="avatar">
+              <Image
+                src="/ashot.jpg"
+                alt="Ashot Zebelyan"
+                fill
+                style={{ objectFit: "cover" }}
+                priority
+              />
+            </div>
+
             <div className="info">
               <h1 className="title">Проектная реализация</h1>
 
@@ -105,7 +116,8 @@ export default function HomePage() {
           border-radius: 999px;
           padding: 10px 16px;
           font-size: 14px;
-          cursor: pointer;
+          cursor: default;
+          white-space: nowrap;
         }
 
         /* HEADER */
@@ -123,9 +135,11 @@ export default function HomePage() {
         }
 
         .avatar {
+          position: relative;
           width: 96px;
           height: 96px;
           border-radius: 50%;
+          overflow: hidden;
           background: #e2e2e2;
         }
 
@@ -178,7 +192,7 @@ export default function HomePage() {
 
         /* GALLERY */
         .gallery {
-          margin-top: 48px; /* УВЕЛИЧЕН ОТСТУП */
+          margin-top: 48px;
         }
 
         .grid {
