@@ -43,7 +43,6 @@ const initialCases: Case[] = [
 ];
 
 export default function HomePage() {
-  const isAdmin = true; // временно, позже привяжем к паролю
   const [cases, setCases] = useState<Case[]>(initialCases);
 
   return (
@@ -56,14 +55,6 @@ export default function HomePage() {
       </header>
 
       <main className="container">
-        {isAdmin && (
-          <div className="admin-bar">
-            <button className="add-btn">
-              + Добавить кейс
-            </button>
-          </div>
-        )}
-
         {cases.length > 0 ? (
           <div className="grid">
             {cases.map((item) => (
@@ -73,11 +64,6 @@ export default function HomePage() {
         ) : (
           <div className="empty-state">
             <p>Пока нет кейсов</p>
-            {isAdmin && (
-              <button className="add-btn">
-                + Добавить первый кейс
-              </button>
-            )}
           </div>
         )}
       </main>
