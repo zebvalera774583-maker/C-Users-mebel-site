@@ -17,7 +17,6 @@ body {
 /* Header */
 .profile-header {
   background: #fff;
-  border-bottom: 1px solid #dbdbdb;
   position: sticky;
   top: 0;
   z-index: 100;

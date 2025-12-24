@@ -50,16 +50,8 @@ export default function HomePage() {
     <>
       <header className="profile-header">
         <div className="header-top">
-          <button className="icon-btn">+</button>
           <div className="header-title">
             <span className="username">ashot.zebelyan</span>
-            <span className="verified">✓</span>
-            <span className="dropdown">▼</span>
-            <span className="activity-dot">●</span>
-          </div>
-          <div className="header-actions">
-            <button className="icon-btn">@</button>
-            <button className="icon-btn">≡</button>
           </div>
         </div>
       </header>
