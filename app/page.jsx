@@ -64,13 +64,13 @@ export default function HomePage() {
           </div>
         )}
 
-        <div className="grid">
-          {cases.map((item) => (
-            <CaseCard key={item.id} item={item} />
-          ))}
-        </div>
-
-        {cases.length === 0 && (
+        {cases.length > 0 ? (
+          <div className="grid">
+            {cases.map((item) => (
+              <CaseCard key={item.id} item={item} />
+            ))}
+          </div>
+        ) : (
           <div className="empty-state">
             <p>Пока нет кейсов</p>
             {isAdmin && (
@@ -88,6 +88,7 @@ export default function HomePage() {
 function CaseCard({ item }: { item: Case }) {
   const [index, setIndex] = useState(0);
   const [isHovered, setIsHovered] = useState(false);
+  const [imageError, setImageError] = useState(false);
 
   return (
     <div 
@@ -96,9 +97,19 @@ function CaseCard({ item }: { item: Case }) {
       onMouseLeave={() => setIsHovered(false)}
     >
       <div className="photo-wrapper">
-        <img src={item.photos[index]} alt={item.note} />
+        {!imageError ? (
+          <img 
+            src={item.photos[index]} 
+            alt={item.note}
+            onError={() => setImageError(true)}
+          />
+        ) : (
+          <div className="placeholder-image">
+            <span>📷</span>
+          </div>
+        )}
 
-        {item.photos.length > 1 && (
+        {item.photos.length > 1 && !imageError && (
           <>
             <button
               className={`nav left ${isHovered ? 'visible' : ''}`}
