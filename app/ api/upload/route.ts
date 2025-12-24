@@ -40,8 +40,12 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error('Ошибка загрузки файла:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Неизвестная ошибка';
     return NextResponse.json(
-      { error: 'Ошибка при загрузке файла' },
+      { 
+        error: 'Ошибка при загрузке файла',
+        details: errorMessage 
+      },
       { status: 500 }
     );
   }
