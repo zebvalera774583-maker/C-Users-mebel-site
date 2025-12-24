@@ -32,9 +32,15 @@ export default function HomePage() {
           });
 
           if (!response.ok) {
-            const error = await response.json();
-            console.error('Ошибка загрузки:', error);
-            alert(`Ошибка при загрузке ${file.name}: ${error.error || 'Неизвестная ошибка'}`);
+            let errorMessage = 'Неизвестная ошибка';
+            try {
+              const error = await response.json();
+              errorMessage = error.error || error.message || JSON.stringify(error);
+            } catch (e) {
+              errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+            }
+            console.error('Ошибка загрузки:', errorMessage);
+            alert(`Ошибка при загрузке ${file.name}: ${errorMessage}`);
             continue;
           }
 
@@ -51,7 +57,8 @@ export default function HomePage() {
       }
     } catch (error) {
       console.error('Ошибка:', error);
-      alert('Произошла ошибка при загрузке файлов');
+      const errorMessage = error instanceof Error ? error.message : 'Неизвестная ошибка';
+      alert(`Произошла ошибка при загрузке файлов: ${errorMessage}`);
     } finally {
       setUploading(false);
       // Сброс input
