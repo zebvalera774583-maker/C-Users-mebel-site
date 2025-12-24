@@ -44,7 +44,6 @@ const initialCases: Case[] = [
 
 export default function HomePage() {
   const [cases, setCases] = useState<Case[]>(initialCases);
-  const [activeTab, setActiveTab] = useState<'grid' | 'reels' | 'tagged'>('grid');
 
   return (
     <>
@@ -66,29 +65,28 @@ export default function HomePage() {
             
             <div className="profile-stats">
               <div className="stat-item">
-                <span className="stat-number">{cases.length}</span>
-                <span className="stat-label">публикации</span>
+                <span className="stat-number">40</span>
+                <span className="stat-label">уникальных кейсов</span>
               </div>
               <div className="stat-item">
-                <span className="stat-number">748</span>
-                <span className="stat-label">подписчики</span>
+                <span className="stat-number">2578</span>
+                <span className="stat-label">проектов</span>
               </div>
               <div className="stat-item">
-                <span className="stat-number">765</span>
-                <span className="stat-label">подписки</span>
+                <span className="stat-number">4</span>
+                <span className="stat-label">города</span>
               </div>
             </div>
           </div>
 
           <div className="profile-info">
-            <h1 className="profile-name">ashot.zebelyan</h1>
             <p className="profile-bio">
-              Деятель искусств<br />
-              Дизайнер мебели<br />
-              Мебельный менеджер<br />
-              Делаю лучшую мебель в мире
+              Проектная реализация<br />
+              Дизайн интерьера<br />
+              Мебель на заказ<br />
+              Комплектация
             </p>
-            <a href="#" className="profile-link">@ashot.zebelyan</a>
+            <a href="#" className="profile-link">Москва - Питер - Сочи - Краснодар</a>
           </div>
 
           <div className="profile-actions">
@@ -105,57 +103,11 @@ export default function HomePage() {
           </div>
         </div>
 
-        <div className="content-tabs">
-          <button 
-            className={`tab ${activeTab === 'grid' ? 'active' : ''}`}
-            onClick={() => setActiveTab('grid')}
-          >
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-              <rect x="3" y="3" width="7" height="7" stroke="currentColor" strokeWidth="2"/>
-              <rect x="14" y="3" width="7" height="7" stroke="currentColor" strokeWidth="2"/>
-              <rect x="3" y="14" width="7" height="7" stroke="currentColor" strokeWidth="2"/>
-              <rect x="14" y="14" width="7" height="7" stroke="currentColor" strokeWidth="2"/>
-            </svg>
-          </button>
-          <button 
-            className={`tab ${activeTab === 'reels' ? 'active' : ''}`}
-            onClick={() => setActiveTab('reels')}
-          >
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-              <rect x="2" y="2" width="20" height="20" stroke="currentColor" strokeWidth="2"/>
-              <path d="M8 6v12l8-6z" fill="currentColor"/>
-            </svg>
-          </button>
-          <button 
-            className={`tab ${activeTab === 'tagged' ? 'active' : ''}`}
-            onClick={() => setActiveTab('tagged')}
-          >
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-              <rect x="3" y="3" width="18" height="18" stroke="currentColor" strokeWidth="2"/>
-              <path d="M9 9h6v6H9z" fill="currentColor"/>
-            </svg>
-          </button>
+        <div className="posts-grid">
+          {cases.map((item) => (
+            <PostCard key={item.id} item={item} />
+          ))}
         </div>
-
-        {activeTab === 'grid' && (
-          <div className="posts-grid">
-            {cases.map((item) => (
-              <PostCard key={item.id} item={item} />
-            ))}
-          </div>
-        )}
-
-        {activeTab === 'reels' && (
-          <div className="empty-tab">
-            <p>Пока нет видео</p>
-          </div>
-        )}
-
-        {activeTab === 'tagged' && (
-          <div className="empty-tab">
-            <p>Пока нет отметок</p>
-          </div>
-        )}
       </main>
     </>
   );
