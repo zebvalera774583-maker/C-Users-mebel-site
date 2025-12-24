@@ -93,13 +93,6 @@ export default function HomePage() {
             <button className="action-btn">Связаться</button>
           </div>
 
-          <div className="highlights">
-            <div className="highlight-item">
-              <div className="highlight-circle">А</div>
-              <span className="highlight-label">Актуальное</span>
-            </div>
-          </div>
-
           <div className="upload-section">
             <input
               id="file-upload"
