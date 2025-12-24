@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 
 type Case = {
   id: string;
@@ -8,42 +8,40 @@ type Case = {
   note: string;
 };
 
-// Примерные данные для демонстрации
-const initialCases: Case[] = [
-  {
-    id: '1',
-    photos: ['/ashot.jpg'],
-    note: 'Кухня на заказ из массива дуба'
-  },
-  {
-    id: '2',
-    photos: ['/ashot.jpg'],
-    note: 'Гардеробная комната с зеркальными фасадами'
-  },
-  {
-    id: '3',
-    photos: ['/ashot.jpg'],
-    note: 'Спальня в классическом стиле'
-  },
-  {
-    id: '4',
-    photos: ['/ashot.jpg'],
-    note: 'Офисная мебель из натурального дерева'
-  },
-  {
-    id: '5',
-    photos: ['/ashot.jpg'],
-    note: 'Детская комната с функциональной мебелью'
-  },
-  {
-    id: '6',
-    photos: ['/ashot.jpg'],
-    note: 'Гостиная с камином и встроенными шкафами'
-  }
-];
-
 export default function HomePage() {
-  const [cases, setCases] = useState<Case[]>(initialCases);
+  const [cases, setCases] = useState<Case[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
+
+    Array.from(files).forEach((file, index) => {
+      if (file.type.startsWith('image/')) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const imageUrl = e.target?.result as string;
+          const newCase: Case = {
+            id: `case-${Date.now()}-${index}`,
+            photos: [imageUrl],
+            note: file.name
+          };
+          
+          setCases(prev => [...prev, newCase]);
+        };
+        reader.readAsDataURL(file);
+      }
+    });
+
+    // Сброс input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const triggerFileInput = () => {
+    fileInputRef.current?.click();
+  };
 
   return (
     <>
@@ -101,79 +99,25 @@ export default function HomePage() {
               <span className="highlight-label">Актуальное</span>
             </div>
           </div>
-        </div>
 
-        <div className="posts-grid">
-          {cases.map((item) => (
-            <PostCard key={item.id} item={item} />
-          ))}
+          <div className="upload-section">
+            <input
+              id="file-upload"
+              type="file"
+              accept="image/*"
+              multiple
+              onChange={handleFileUpload}
+              style={{ display: 'none' }}
+              ref={fileInputRef}
+            />
+            <button className="upload-btn" onClick={triggerFileInput}>
+              📷 Загрузить фото
+            </button>
+          </div>
         </div>
       </main>
     </>
   );
 }
 
-function PostCard({ item }: { item: Case }) {
-  const [index, setIndex] = useState(0);
-  const [isHovered, setIsHovered] = useState(false);
-  const [imageError, setImageError] = useState(false);
-
-  return (
-    <div 
-      className="post-card"
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-    >
-      <div className="post-image-wrapper">
-        {!imageError ? (
-          <img 
-            src={item.photos[index]} 
-            alt={item.note}
-            onError={() => setImageError(true)}
-          />
-        ) : (
-          <div className="placeholder-image">
-            <span>📷</span>
-          </div>
-        )}
-
-        {item.photos.length > 1 && !imageError && (
-          <>
-            <button
-              className={`post-nav left ${isHovered ? 'visible' : ''}`}
-              onClick={() =>
-                setIndex((index - 1 + item.photos.length) % item.photos.length)
-              }
-            >
-              ‹
-            </button>
-            <button
-              className={`post-nav right ${isHovered ? 'visible' : ''}`}
-              onClick={() =>
-                setIndex((index + 1) % item.photos.length)
-              }
-            >
-              ›
-            </button>
-            <div className="post-indicator">
-              {item.photos.map((_, i) => (
-                <span 
-                  key={i} 
-                  className={i === index ? 'active' : ''}
-                />
-              ))}
-            </div>
-          </>
-        )}
-
-        {isHovered && (
-          <div className="post-overlay">
-            <span className="post-likes">❤️ 0</span>
-            <span className="post-comments">💬 0</span>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
 
