@@ -10,32 +10,54 @@ type Case = {
 
 export default function HomePage() {
   const [cases, setCases] = useState<Case[]>([]);
+  const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
     if (!files || files.length === 0) return;
 
-    Array.from(files).forEach((file, index) => {
-      if (file.type.startsWith('image/')) {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          const imageUrl = e.target?.result as string;
+    setUploading(true);
+
+    try {
+      // Загружаем файлы последовательно
+      for (const file of Array.from(files)) {
+        if (file.type.startsWith('image/')) {
+          const formData = new FormData();
+          formData.append('file', file);
+
+          const response = await fetch('/api/upload', {
+            method: 'POST',
+            body: formData,
+          });
+
+          if (!response.ok) {
+            const error = await response.json();
+            console.error('Ошибка загрузки:', error);
+            alert(`Ошибка при загрузке ${file.name}: ${error.error || 'Неизвестная ошибка'}`);
+            continue;
+          }
+
+          const data = await response.json();
+          
           const newCase: Case = {
-            id: `case-${Date.now()}-${index}`,
-            photos: [imageUrl],
+            id: `case-${Date.now()}-${Math.random()}`,
+            photos: [data.url],
             note: file.name
           };
           
           setCases(prev => [...prev, newCase]);
-        };
-        reader.readAsDataURL(file);
+        }
       }
-    });
-
-    // Сброс input
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
+    } catch (error) {
+      console.error('Ошибка:', error);
+      alert('Произошла ошибка при загрузке файлов');
+    } finally {
+      setUploading(false);
+      // Сброс input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
     }
   };
 
@@ -103,8 +125,12 @@ export default function HomePage() {
               style={{ display: 'none' }}
               ref={fileInputRef}
             />
-            <button className="upload-btn" onClick={triggerFileInput}>
-              📷 Загрузить фото
+            <button 
+              className="upload-btn" 
+              onClick={triggerFileInput}
+              disabled={uploading}
+            >
+              {uploading ? '⏳ Загрузка...' : '📷 Загрузить фото'}
             </button>
           </div>
         </div>
