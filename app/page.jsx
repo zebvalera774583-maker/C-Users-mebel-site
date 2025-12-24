@@ -51,7 +51,7 @@ export default function HomePage() {
       <header className="header">
         <div className="header-content">
           <h1 className="logo">Ashot Zebelyan</h1>
-          <p className="tagline">Мебель на заказ</p>
+          <p className="tagline">Мебель на заказ • Портфолио</p>
         </div>
       </header>
 
