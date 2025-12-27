@@ -72,12 +72,13 @@ export default function HomePage() {
         console.log('Presigned URL received:', presignedUrl.substring(0, 50) + '...');
 
         // 2. Загружаем файл напрямую в R2 используя presigned URL
+        // ВАЖНО: Только Content-Type header, никаких других!
         console.log('Uploading file directly to R2...');
         const uploadResponse = await fetch(presignedUrl, {
           method: 'PUT',
           body: file,
           headers: {
-            'Content-Type': file.type,
+            'Content-Type': file.type, // ОБЯЗАТЕЛЬНО совпадает с ContentType при presign
           },
         });
 

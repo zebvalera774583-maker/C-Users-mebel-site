@@ -57,11 +57,14 @@ export async function POST(request: NextRequest) {
       forcePathStyle: false,
     });
 
-    // Генерируем presigned URL
+    // Генерируем presigned URL для браузера
+    // ВАЖНО: НЕ добавляем ChecksumAlgorithm - браузер не может его отправить
+    // SDK не должен автоматически добавлять checksum headers
     const command = new PutObjectCommand({
       Bucket: bucketName,
       Key: fileName,
       ContentType: contentType,
+      // Только эти параметры - никаких checksum!
     });
 
     // Presigned URL действителен 15 минут
