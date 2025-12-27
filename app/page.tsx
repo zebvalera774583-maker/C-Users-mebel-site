@@ -35,34 +35,60 @@ export default function HomePage() {
         const file = files[i];
         console.log(`Uploading file ${i + 1}/${files.length}:`, file.name, file.type, file.size);
         
-        const formData = new FormData();
-        formData.append('file', file);
+        // Генерируем уникальное имя файла
+        const timestamp = Date.now();
+        const randomString = Math.random().toString(36).substring(2, 15);
+        const fileExtension = file.name.split('.').pop() || 'jpg';
+        const fileName = `photos/${timestamp}-${randomString}.${fileExtension}`;
 
-        console.log('Sending request to /api/upload...');
-        const response = await fetch('/api/upload', {
+        // 1. Получаем presigned URL от сервера
+        console.log('Getting presigned URL from /api/presign...');
+        const presignResponse = await fetch('/api/presign', {
           method: 'POST',
-          body: formData,
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            fileName,
+            contentType: file.type,
+          }),
         });
 
-        console.log('Response status:', response.status, response.statusText);
-        console.log('Response headers:', Object.fromEntries(response.headers.entries()));
-
-        if (!response.ok) {
-          const text = await response.text();
+        if (!presignResponse.ok) {
+          const text = await presignResponse.text();
           let errorData;
           try {
             errorData = JSON.parse(text);
           } catch (e) {
-            console.error('Failed to parse error response:', text);
-            throw new Error(`HTTP ${response.status}: ${response.statusText} - ${text}`);
+            console.error('Failed to parse presign error response:', text);
+            throw new Error(`HTTP ${presignResponse.status}: ${presignResponse.statusText} - ${text}`);
           }
-          console.error('Upload error:', errorData);
-          throw new Error(errorData.error || errorData.details || 'Ошибка загрузки');
+          console.error('Presign error:', errorData);
+          throw new Error(errorData.error || errorData.details || 'Ошибка получения presigned URL');
         }
 
-        const data = await response.json();
-        console.log('Upload successful:', data);
-        uploadedPhotos.push(data.url);
+        const presignData = await presignResponse.json();
+        const { presignedUrl, publicUrl } = presignData;
+        console.log('Presigned URL received:', presignedUrl.substring(0, 50) + '...');
+
+        // 2. Загружаем файл напрямую в R2 используя presigned URL
+        console.log('Uploading file directly to R2...');
+        const uploadResponse = await fetch(presignedUrl, {
+          method: 'PUT',
+          body: file,
+          headers: {
+            'Content-Type': file.type,
+          },
+        });
+
+        if (!uploadResponse.ok) {
+          const text = await uploadResponse.text();
+          console.error('R2 upload error:', text);
+          throw new Error(`Ошибка загрузки в R2: HTTP ${uploadResponse.status} - ${text}`);
+        }
+
+        console.log('Upload successful, public URL:', publicUrl);
+        uploadedPhotos.push(publicUrl);
       }
 
       // Создаем новый кейс с загруженными фотографиями

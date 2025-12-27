@@ -1,8 +1,8 @@
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import { NextRequest, NextResponse } from 'next/server';
-
-export const runtime = "nodejs";
-export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
   try {
