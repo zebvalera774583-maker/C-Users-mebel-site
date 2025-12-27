@@ -76,6 +76,11 @@ R2_PUBLIC_URL=https://pub-f0552636863240bd98bc6780dd915dae.r2.dev
 
    **Почему это важно:** Без CORS Policy браузер блокирует прямую загрузку файлов в R2 через presigned URLs из-за CORS проверок.
 
+   **⚠️ ВАЖНО: Тестирование загрузки фото:**
+   - Всегда тестируйте загрузку на **production домене**: `https://ashot-zebelyan-site.vercel.app`
+   - **НЕ используйте** preview домены (`*-vals-projects-*.vercel.app`) для тестирования загрузки - они не будут работать из-за CORS
+   - Если нужно тестировать на preview - добавьте конкретный preview домен в CORS Policy (но для production лучше использовать кастомный домен для R2)
+
 5. Запустите dev сервер:
 ```bash
 npm run dev
