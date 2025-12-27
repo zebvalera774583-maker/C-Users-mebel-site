@@ -16,13 +16,8 @@ export default function HomePage() {
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
-    console.log('handleFileUpload вызван, files:', files);
-    if (!files || files.length === 0) {
-      console.log('Файлы не выбраны');
-      return;
-    }
+    if (!files || files.length === 0) return;
 
-    console.log('Начинаем загрузку, файлов:', files.length);
     setUploading(true);
 
     try {
@@ -51,7 +46,6 @@ export default function HomePage() {
           }
 
           const data = await response.json();
-          console.log('Фото загружено успешно:', data.url);
           
           const newCase: Case = {
             id: `case-${Date.now()}-${Math.random()}`,
@@ -59,12 +53,7 @@ export default function HomePage() {
             note: file.name
           };
           
-          console.log('Добавляем фото в cases:', newCase);
-          setCases(prev => {
-            const updated = [...prev, newCase];
-            console.log('Обновленный список cases:', updated);
-            return updated;
-          });
+          setCases(prev => [...prev, newCase]);
         }
       }
     } catch (error) {
@@ -128,7 +117,7 @@ export default function HomePage() {
               Мебель на заказ<br />
               Комплектация
             </p>
-            <a href="#" className="profile-link">Москва - Питер - Сочи - Краснодар</a>
+            <a href="#" className="profile-link">Москва - Питер - СОчи - Краснодар</a>
           </div>
 
           <div className="profile-actions">
@@ -155,28 +144,6 @@ export default function HomePage() {
               {uploading ? '⏳ Загрузка...' : '📷 Загрузить фото'}
             </button>
           </div>
-
-          {/* Отображение загруженных фото */}
-          {cases.length > 0 && (
-            <div className="uploaded-photos">
-              <h3>Загруженные фото:</h3>
-              <div className="photos-grid">
-                {cases.map((item) => (
-                  <div key={item.id} className="photo-item">
-                    {item.photos.map((photoUrl, index) => (
-                      <img
-                        key={index}
-                        src={photoUrl}
-                        alt={item.note || 'Uploaded photo'}
-                        className="uploaded-photo"
-                      />
-                    ))}
-                    <p className="photo-note">{item.note}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
       </main>
     </>
