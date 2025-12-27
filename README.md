@@ -56,10 +56,10 @@ R2_PUBLIC_URL=https://pub-f0552636863240bd98bc6780dd915dae.r2.dev
          "https://ashot-zebelyan-site.vercel.app"
        ],
        "AllowedMethods": [
-         "GET",
          "PUT",
-         "POST",
-         "HEAD"
+         "GET",
+         "HEAD",
+         "OPTIONS"
        ],
        "AllowedHeaders": [
          "*"
@@ -67,7 +67,7 @@ R2_PUBLIC_URL=https://pub-f0552636863240bd98bc6780dd915dae.r2.dev
        "ExposeHeaders": [
          "ETag"
        ],
-       "MaxAgeSeconds": 3600
+       "MaxAgeSeconds": 86400
      }
    ]
    ```
@@ -75,6 +75,8 @@ R2_PUBLIC_URL=https://pub-f0552636863240bd98bc6780dd915dae.r2.dev
    4. Сохраните изменения
 
    **Почему это важно:** Без CORS Policy браузер блокирует прямую загрузку файлов в R2 через presigned URLs из-за CORS проверок.
+   
+   **❗ КРИТИЧНО:** Метод `OPTIONS` должен быть явно указан в `AllowedMethods`. Cloudflare R2 требует явного разрешения на OPTIONS (preflight запросы), даже если браузер автоматически отправляет их. Без OPTIONS presigned PUT запросы будут обрываться с ошибкой `ERR_CONNECTION_ABORTED`.
 
    **⚠️ ВАЖНО: Тестирование загрузки фото:**
    - Всегда тестируйте загрузку на **production домене**: `https://ashot-zebelyan-site.vercel.app`
