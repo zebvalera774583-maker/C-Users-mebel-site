@@ -62,8 +62,16 @@ export default function HomePage() {
         }
 
         const pres = await presignResponse.json();
+        console.log('Presign response:', pres);
         const { uploadUrl, publicUrl } = pres;
+        
+        if (!uploadUrl || !publicUrl) {
+          console.error('Missing uploadUrl or publicUrl in presign response:', pres);
+          throw new Error('Неверный формат ответа от сервера');
+        }
+        
         console.log('Presigned URL received:', uploadUrl.substring(0, 50) + '...');
+        console.log('Public URL:', publicUrl);
 
         // 2. PUT напрямую в R2
         console.log('Uploading file directly to R2...');
@@ -75,24 +83,34 @@ export default function HomePage() {
           },
         });
 
-        if (!uploadResponse.ok) {
+        console.log('Upload response status:', uploadResponse.status, 'ok:', uploadResponse.ok);
+
+        // 204 (No Content) - это успех для PUT в R2
+        if (!uploadResponse.ok && uploadResponse.status !== 204) {
           const text = await uploadResponse.text();
-          console.error('R2 upload error:', text);
+          console.error('R2 upload error:', text, 'Status:', uploadResponse.status);
           throw new Error(`Ошибка загрузки в R2: HTTP ${uploadResponse.status} - ${text}`);
         }
 
-        console.log('Upload successful, public URL:', publicUrl);
+        console.log('Upload successful! Status:', uploadResponse.status, 'Public URL:', publicUrl);
         uploadedPhotos.push(publicUrl);
+        console.log('Uploaded photos array:', uploadedPhotos);
       }
 
       // Создаем новый кейс с загруженными фотографиями
+      console.log('All files uploaded, creating case with photos:', uploadedPhotos);
       const newCase: Case = {
         id: caseId,
         photos: uploadedPhotos,
         caption: '',
       };
 
-      setCases((prev) => [...prev, newCase]);
+      console.log('New case:', newCase);
+      setCases((prev) => {
+        const updated = [...prev, newCase];
+        console.log('Updated cases state:', updated);
+        return updated;
+      });
       setCurrentPhotoIndex((prev) => ({ ...prev, [caseId]: 0 }));
     } catch (error) {
       console.error('Ошибка загрузки:', error);
