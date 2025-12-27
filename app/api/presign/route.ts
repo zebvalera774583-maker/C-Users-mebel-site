@@ -71,24 +71,9 @@ export async function POST(req: NextRequest) {
     });
 
     // Генерируем presigned URL
-    // Примечание: AWS SDK v3 может автоматически добавлять checksum для больших файлов
-    // Если это произойдет, браузер не сможет отправить запрос корректно
-    let uploadUrl = await getSignedUrl(s3, cmd, { expiresIn: 60 });
-
-    // ВАЖНО: Удаляем checksum параметры из URL, если они есть
-    // Это может сломать подпись, но checksum опционален, поэтому AWS может принять запрос
-    // В идеале нужно использовать метод, который не добавляет checksum изначально
-    try {
-      const url = new URL(uploadUrl);
-      if (url.searchParams.has('x-amz-sdk-checksum-algorithm')) {
-        console.warn('Warning: checksum algorithm detected in presigned URL, removing it');
-        url.searchParams.delete('x-amz-sdk-checksum-algorithm');
-        url.searchParams.delete('x-amz-checksum-crc32');
-        uploadUrl = url.toString();
-      }
-    } catch (e) {
-      console.error('Error parsing uploadUrl:', e);
-    }
+    // ВАЖНО: Не удаляем параметры из URL после генерации - это ломает подпись AWS
+    // Если AWS SDK добавляет checksum автоматически, нужно использовать другой подход
+    const uploadUrl = await getSignedUrl(s3, cmd, { expiresIn: 3600 });
 
     // Формируем публичный URL правильно (убираем только лишние слеши, но сохраняем https://)
     const cleanPublicUrl = publicUrl.replace(/\/+$/, ''); // Убираем trailing слеши
