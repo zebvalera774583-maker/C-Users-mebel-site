@@ -45,13 +45,22 @@ export async function POST(request: NextRequest) {
     }
 
     // Инициализируем S3 клиент для R2
+    const endpoint = `https://${accountId}.r2.cloudflarestorage.com`;
+    console.log('R2 Configuration:', {
+      endpoint,
+      bucketName,
+      accessKeyId: accessKeyId.substring(0, 8) + '...', // Логируем только начало для безопасности
+      hasSecret: !!secretAccessKey,
+    });
+
     const s3Client = new S3Client({
       region: 'auto',
-      endpoint: `https://${accountId}.r2.cloudflarestorage.com`,
+      endpoint: endpoint,
       credentials: {
         accessKeyId,
         secretAccessKey,
       },
+      forcePathStyle: false, // R2 использует virtual-hosted-style URLs
     });
 
     // Генерируем уникальное имя файла
@@ -60,19 +69,32 @@ export async function POST(request: NextRequest) {
     const fileExtension = file.name.split('.').pop() || 'jpg';
     const fileName = `photos/${timestamp}-${randomString}.${fileExtension}`;
 
+    console.log('Uploading file:', fileName, 'to bucket:', bucketName);
+
     // Конвертируем File в Buffer
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
     // Загружаем файл в R2
-    await s3Client.send(
-      new PutObjectCommand({
-        Bucket: bucketName,
-        Key: fileName,
-        Body: buffer,
-        ContentType: file.type,
-      })
-    );
+    try {
+      const result = await s3Client.send(
+        new PutObjectCommand({
+          Bucket: bucketName,
+          Key: fileName,
+          Body: buffer,
+          ContentType: file.type,
+        })
+      );
+      console.log('Upload successful:', result);
+    } catch (uploadError) {
+      console.error('R2 Upload error details:', {
+        name: uploadError instanceof Error ? uploadError.name : 'Unknown',
+        message: uploadError instanceof Error ? uploadError.message : String(uploadError),
+        code: (uploadError as any)?.$metadata?.httpStatusCode,
+        requestId: (uploadError as any)?.$metadata?.requestId,
+      });
+      throw uploadError;
+    }
 
     // Формируем публичный URL
     const publicFileUrl = `${publicUrl}/${fileName}`;
@@ -85,6 +107,14 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Ошибка загрузки файла:', error);
     const errorMessage = error instanceof Error ? error.message : 'Неизвестная ошибка';
+    
+    // Логируем детали для отладки
+    if (error instanceof Error) {
+      console.error('Error name:', error.name);
+      console.error('Error message:', error.message);
+      console.error('Error stack:', error.stack);
+    }
+    
     return NextResponse.json(
       { 
         error: 'Ошибка при загрузке файла',
