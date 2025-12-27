@@ -33,20 +33,35 @@ export default function HomePage() {
       // Загружаем все выбранные файлы
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
+        console.log(`Uploading file ${i + 1}/${files.length}:`, file.name, file.type, file.size);
+        
         const formData = new FormData();
         formData.append('file', file);
 
+        console.log('Sending request to /api/upload...');
         const response = await fetch('/api/upload', {
           method: 'POST',
           body: formData,
         });
 
+        console.log('Response status:', response.status, response.statusText);
+        console.log('Response headers:', Object.fromEntries(response.headers.entries()));
+
         if (!response.ok) {
-          const error = await response.json();
-          throw new Error(error.error || 'Ошибка загрузки');
+          let errorData;
+          try {
+            errorData = await response.json();
+          } catch (e) {
+            const text = await response.text();
+            console.error('Failed to parse error response:', text);
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+          }
+          console.error('Upload error:', errorData);
+          throw new Error(errorData.error || errorData.details || 'Ошибка загрузки');
         }
 
         const data = await response.json();
+        console.log('Upload successful:', data);
         uploadedPhotos.push(data.url);
       }
 
