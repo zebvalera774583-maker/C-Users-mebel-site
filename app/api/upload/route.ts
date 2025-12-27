@@ -30,19 +30,9 @@ export async function POST(request: NextRequest) {
     const fileName = `photos/${timestamp}-${randomString}.${fileExtension}`;
 
     // Загружаем файл в Vercel Blob Storage
-    const token = process.env.BLOB_READ_WRITE_TOKEN;
-    if (!token) {
-      console.error('BLOB_READ_WRITE_TOKEN не найден');
-      return NextResponse.json(
-        { error: 'Blob Storage не настроен' },
-        { status: 500 }
-      );
-    }
-
     const blob = await put(fileName, file, {
       access: 'public',
       contentType: file.type,
-      token: token,
     });
 
     return NextResponse.json({
