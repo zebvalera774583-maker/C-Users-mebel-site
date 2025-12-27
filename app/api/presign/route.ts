@@ -59,7 +59,6 @@ export async function POST(request: NextRequest) {
 
     // Генерируем presigned URL для браузера
     // ВАЖНО: НЕ добавляем ChecksumAlgorithm - браузер не может его отправить
-    // SDK не должен автоматически добавлять checksum headers
     const command = new PutObjectCommand({
       Bucket: bucketName,
       Key: fileName,
@@ -68,9 +67,15 @@ export async function POST(request: NextRequest) {
     });
 
     // Presigned URL действителен 15 минут
-    const presignedUrl = await getSignedUrl(s3Client, command, {
+    let presignedUrl = await getSignedUrl(s3Client, command, {
       expiresIn: 900, // 15 минут
     });
+    
+    // ВАЖНО: SDK может автоматически добавить x-amz-sdk-checksum-algorithm в URL
+    // Браузер не может отправить этот header, поэтому удаляем его из URL
+    // Удаляем параметр checksum из query string если он там есть
+    presignedUrl = presignedUrl.replace(/[?&]x-amz-sdk-checksum-algorithm=[^&]*/g, '');
+    presignedUrl = presignedUrl.replace(/[?&]x-amz-checksum-[^&]*/g, '');
 
     // Формируем публичный URL для доступа к файлу после загрузки
     const publicFileUrl = `${publicUrl}/${fileName}`;
