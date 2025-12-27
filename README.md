@@ -46,6 +46,36 @@ R2_PUBLIC_URL=https://pub-f0552636863240bd98bc6780dd915dae.r2.dev
 - `R2_BUCKET_NAME` - название вашего bucket в R2
 - `R2_PUBLIC_URL` - Public URL вашего bucket (включите Public Access в настройках bucket)
 
+5. **⚠️ ОБЯЗАТЕЛЬНО: Настройте CORS Policy в R2 bucket:**
+   1. Cloudflare Dashboard → R2 Object Storage → `ashot-zebelyan-photos` → Settings → CORS Policy
+   2. Вставьте следующую политику:
+   ```json
+   [
+     {
+       "AllowedOrigins": [
+         "https://ashot-zebelyan-site.vercel.app"
+       ],
+       "AllowedMethods": [
+         "GET",
+         "PUT",
+         "POST",
+         "HEAD"
+       ],
+       "AllowedHeaders": [
+         "*"
+       ],
+       "ExposeHeaders": [
+         "ETag"
+       ],
+       "MaxAgeSeconds": 3600
+     }
+   ]
+   ```
+   3. Если у вас есть кастомный домен (например `ashot.zebelyan.com`) - добавьте его тоже в `AllowedOrigins`
+   4. Сохраните изменения
+
+   **Почему это важно:** Без CORS Policy браузер блокирует прямую загрузку файлов в R2 через presigned URLs из-за CORS проверок.
+
 5. Запустите dev сервер:
 ```bash
 npm run dev
