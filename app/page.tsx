@@ -34,14 +34,8 @@ export default function HomePage() {
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
         console.log(`Uploading file ${i + 1}/${files.length}:`, file.name, file.type, file.size);
-        
-        // Генерируем уникальное имя файла
-        const timestamp = Date.now();
-        const randomString = Math.random().toString(36).substring(2, 15);
-        const fileExtension = file.name.split('.').pop() || 'jpg';
-        const fileName = `photos/${timestamp}-${randomString}.${fileExtension}`;
 
-        // 1. Получаем presigned URL от сервера
+        // 1. Получаем presigned URL от сервера (key генерируется на сервере)
         console.log('Getting presigned URL from /api/presign...');
         const presignResponse = await fetch('/api/presign', {
           method: 'POST',
