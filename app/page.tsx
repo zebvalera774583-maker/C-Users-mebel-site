@@ -49,8 +49,8 @@ export default function HomePage() {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            fileName,
             contentType: file.type,
+            fileName: file.name,
           }),
         });
 
@@ -64,21 +64,20 @@ export default function HomePage() {
             throw new Error(`HTTP ${presignResponse.status}: ${presignResponse.statusText} - ${text}`);
           }
           console.error('Presign error:', errorData);
-          throw new Error(errorData.error || errorData.details || 'Ошибка получения presigned URL');
+          throw new Error(errorData.error || 'Ошибка получения presigned URL');
         }
 
-        const presignData = await presignResponse.json();
-        const { presignedUrl, publicUrl } = presignData;
-        console.log('Presigned URL received:', presignedUrl.substring(0, 50) + '...');
+        const pres = await presignResponse.json();
+        const { uploadUrl, publicUrl } = pres;
+        console.log('Presigned URL received:', uploadUrl.substring(0, 50) + '...');
 
-        // 2. Загружаем файл напрямую в R2 используя presigned URL
-        // ВАЖНО: Только Content-Type header, никаких других!
+        // 2. PUT напрямую в R2
         console.log('Uploading file directly to R2...');
-        const uploadResponse = await fetch(presignedUrl, {
+        const uploadResponse = await fetch(uploadUrl, {
           method: 'PUT',
           body: file,
           headers: {
-            'Content-Type': file.type, // ОБЯЗАТЕЛЬНО совпадает с ContentType при presign
+            'Content-Type': file.type, // только это
           },
         });
 
