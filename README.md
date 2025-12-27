@@ -11,7 +11,7 @@
    - 3-5 уточняющих вопросов
    - Сбор контактных данных (имя, телефон)
    - Передача владельцу
-4. ✅ **Загрузка фото** - фото загружаются через веб-интерфейс с телефона в Vercel Blob Storage (не из Telegram)
+4. ✅ **Загрузка фото** - фото загружаются через веб-интерфейс с телефона в Cloudflare R2 (множественные фото, слайдер, подпись)
 5. ✅ **Админка Inbox** - веб-интерфейс для просмотра и ответов на сообщения
 
 ## Установка
@@ -31,10 +31,32 @@ cp .env.example .env
 TELEGRAM_BOT_TOKEN=your_bot_token_here
 ```
 
-4. Запустите dev сервер:
+4. Настройте Cloudflare R2 для хранения фотографий. Добавьте в `.env`:
+```
+R2_ACCOUNT_ID=your_account_id
+R2_ACCESS_KEY_ID=your_access_key_id
+R2_SECRET_ACCESS_KEY=your_secret_access_key
+R2_BUCKET_NAME=ashot-zebelyan-photos
+R2_PUBLIC_URL=https://pub-f0552636863240bd98bc6780dd915dae.r2.dev
+```
+
+**Где найти эти данные:**
+- `R2_ACCOUNT_ID` - ваш Account ID из Cloudflare dashboard (находится в endpoint URL)
+- `R2_ACCESS_KEY_ID` и `R2_SECRET_ACCESS_KEY` - создайте через Cloudflare dashboard: R2 → API Tokens → Create API Token (Object Read & Write permissions)
+- `R2_BUCKET_NAME` - название вашего bucket в R2
+- `R2_PUBLIC_URL` - Public URL вашего bucket (включите Public Access в настройках bucket)
+
+5. Запустите dev сервер:
 ```bash
 npm run dev
 ```
+
+## Настройка для Production (Vercel)
+
+После деплоя на Vercel добавьте все переменные окружения в настройках проекта:
+1. Откройте проект в Vercel Dashboard
+2. Settings → Environment Variables
+3. Добавьте все переменные из `.env` файла (TELEGRAM_BOT_TOKEN, R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET_NAME, R2_PUBLIC_URL)
 
 ## Настройка Telegram Webhook
 

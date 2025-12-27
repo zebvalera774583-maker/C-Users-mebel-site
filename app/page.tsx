@@ -1,8 +1,128 @@
 'use client';
 
+import { useState, useRef } from 'react';
 import Link from 'next/link';
 
+type Case = {
+  id: string;
+  photos: string[];
+  caption: string;
+};
+
 export default function HomePage() {
+  const [cases, setCases] = useState<Case[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const [currentPhotoIndex, setCurrentPhotoIndex] = useState<{ [key: string]: number }>({});
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [touchStart, setTouchStart] = useState<number | null>(null);
+  const [touchEnd, setTouchEnd] = useState<number | null>(null);
+
+  const triggerFileInput = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    setUploading(true);
+    const caseId = Date.now().toString();
+    const uploadedPhotos: string[] = [];
+
+    try {
+      // Загружаем все выбранные файлы
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const response = await fetch('/api/upload', {
+          method: 'POST',
+          body: formData,
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.error || 'Ошибка загрузки');
+        }
+
+        const data = await response.json();
+        uploadedPhotos.push(data.url);
+      }
+
+      // Создаем новый кейс с загруженными фотографиями
+      const newCase: Case = {
+        id: caseId,
+        photos: uploadedPhotos,
+        caption: '',
+      };
+
+      setCases((prev) => [...prev, newCase]);
+      setCurrentPhotoIndex((prev) => ({ ...prev, [caseId]: 0 }));
+    } catch (error) {
+      console.error('Ошибка загрузки:', error);
+      alert('Ошибка при загрузке фото. Попробуйте еще раз.');
+    } finally {
+      setUploading(false);
+      // Сбрасываем input, чтобы можно было загрузить те же файлы снова
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const updateCaption = (caseId: string, caption: string) => {
+    setCases((prev) =>
+      prev.map((c) => (c.id === caseId ? { ...c, caption } : c))
+    );
+  };
+
+  const nextPhoto = (caseId: string) => {
+    const caseItem = cases.find((c) => c.id === caseId);
+    if (!caseItem) return;
+
+    setCurrentPhotoIndex((prev) => {
+      const current = prev[caseId] || 0;
+      const next = current < caseItem.photos.length - 1 ? current + 1 : 0;
+      return { ...prev, [caseId]: next };
+    });
+  };
+
+  const prevPhoto = (caseId: string) => {
+    const caseItem = cases.find((c) => c.id === caseId);
+    if (!caseItem) return;
+
+    setCurrentPhotoIndex((prev) => {
+      const current = prev[caseId] || 0;
+      const prevIndex = current > 0 ? current - 1 : caseItem.photos.length - 1;
+      return { ...prev, [caseId]: prevIndex };
+    });
+  };
+
+  const minSwipeDistance = 50;
+
+  const onTouchStart = (e: React.TouchEvent) => {
+    setTouchEnd(null);
+    setTouchStart(e.targetTouches[0].clientX);
+  };
+
+  const onTouchMove = (e: React.TouchEvent) => {
+    setTouchEnd(e.targetTouches[0].clientX);
+  };
+
+  const onTouchEnd = (caseId: string) => {
+    if (!touchStart || !touchEnd) return;
+    const distance = touchStart - touchEnd;
+    const isLeftSwipe = distance > minSwipeDistance;
+    const isRightSwipe = distance < -minSwipeDistance;
+
+    if (isLeftSwipe) {
+      nextPhoto(caseId);
+    }
+    if (isRightSwipe) {
+      prevPhoto(caseId);
+    }
+  };
 
   return (
     <>
@@ -56,6 +176,100 @@ export default function HomePage() {
             <button className="action-btn">Поделиться</button>
             <button className="action-btn">Связаться</button>
           </div>
+
+          {/* Upload Section */}
+          <div className="upload-section">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              multiple
+              onChange={handleFileUpload}
+              style={{ display: 'none' }}
+            />
+            <button
+              className="upload-btn"
+              onClick={triggerFileInput}
+              disabled={uploading}
+            >
+              {uploading ? '⏳ Загрузка...' : '📷 Загрузить фото'}
+            </button>
+          </div>
+
+          {/* Display Cases */}
+          {cases.length > 0 && (
+            <div className="cases-section">
+              {cases.map((caseItem) => {
+                const currentIndex = currentPhotoIndex[caseItem.id] || 0;
+                return (
+                  <div key={caseItem.id} className="case-card">
+                    <div
+                      className="photo-slider"
+                      onTouchStart={onTouchStart}
+                      onTouchMove={onTouchMove}
+                      onTouchEnd={() => onTouchEnd(caseItem.id)}
+                    >
+                      <div
+                        className="photo-slides"
+                        style={{
+                          transform: `translateX(-${currentIndex * 100}%)`,
+                        }}
+                      >
+                        {caseItem.photos.map((photo, index) => (
+                          <div key={index} className="photo-slide">
+                            <img src={photo} alt={`Photo ${index + 1}`} />
+                          </div>
+                        ))}
+                      </div>
+
+                      {caseItem.photos.length > 1 && (
+                        <>
+                          <button
+                            className="slider-nav left"
+                            onClick={() => prevPhoto(caseItem.id)}
+                            aria-label="Предыдущее фото"
+                          >
+                            ‹
+                          </button>
+                          <button
+                            className="slider-nav right"
+                            onClick={() => nextPhoto(caseItem.id)}
+                            aria-label="Следующее фото"
+                          >
+                            ›
+                          </button>
+                          <div className="slider-indicator">
+                            {caseItem.photos.map((_, index) => (
+                              <span
+                                key={index}
+                                className={index === currentIndex ? 'active' : ''}
+                                onClick={() =>
+                                  setCurrentPhotoIndex((prev) => ({
+                                    ...prev,
+                                    [caseItem.id]: index,
+                                  }))
+                                }
+                              />
+                            ))}
+                          </div>
+                        </>
+                      )}
+                    </div>
+
+                    <div className="caption-input-wrapper">
+                      <input
+                        type="text"
+                        className="caption-input"
+                        placeholder="Добавить подпись..."
+                        value={caseItem.caption}
+                        onChange={(e) => updateCaption(caseItem.id, e.target.value)}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       </main>
     </>
