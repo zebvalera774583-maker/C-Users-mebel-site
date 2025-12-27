@@ -144,6 +144,28 @@ export default function HomePage() {
               {uploading ? '⏳ Загрузка...' : '📷 Загрузить фото'}
             </button>
           </div>
+
+          {/* Отображение загруженных фото */}
+          {cases.length > 0 && (
+            <div className="uploaded-photos">
+              <h3>Загруженные фото:</h3>
+              <div className="photos-grid">
+                {cases.map((item) => (
+                  <div key={item.id} className="photo-item">
+                    {item.photos.map((photoUrl, index) => (
+                      <img
+                        key={index}
+                        src={photoUrl}
+                        alt={item.note || 'Uploaded photo'}
+                        className="uploaded-photo"
+                      />
+                    ))}
+                    <p className="photo-note">{item.note}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </main>
     </>
