@@ -1,9 +1,6 @@
 import { NextResponse } from 'next/server';
 import { loadConversations, getMessagesByChatId } from '@/lib/storage';
 
-// Указываем, что этот route должен быть динамическим
-export const dynamic = 'force-dynamic';
-
 // GET /api/messages - получить список диалогов
 export async function GET(request: Request) {
   try {

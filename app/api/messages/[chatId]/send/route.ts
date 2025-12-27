@@ -8,8 +8,6 @@ import {
   Message,
 } from '@/lib/storage';
 
-export const dynamic = 'force-dynamic';
-
 // POST /api/messages/[chatId]/send - отправить ответ
 export async function POST(
   request: NextRequest,

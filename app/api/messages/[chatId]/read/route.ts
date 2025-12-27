@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { markConversationAsRead } from '@/lib/storage';
 
-export const dynamic = 'force-dynamic';
-
 // POST /api/messages/[chatId]/read - отметить диалог как прочитанный
 export async function POST(
   request: NextRequest,
