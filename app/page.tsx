@@ -48,13 +48,13 @@ export default function HomePage() {
         console.log('Response headers:', Object.fromEntries(response.headers.entries()));
 
         if (!response.ok) {
+          const text = await response.text();
           let errorData;
           try {
-            errorData = await response.json();
+            errorData = JSON.parse(text);
           } catch (e) {
-            const text = await response.text();
             console.error('Failed to parse error response:', text);
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            throw new Error(`HTTP ${response.status}: ${response.statusText} - ${text}`);
           }
           console.error('Upload error:', errorData);
           throw new Error(errorData.error || errorData.details || 'Ошибка загрузки');
