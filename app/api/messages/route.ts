@@ -1,10 +1,12 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { loadConversations, getMessagesByChatId } from '@/lib/storage';
 
+export const dynamic = 'force-dynamic';
+
 // GET /api/messages - получить список диалогов
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
+    const { searchParams } = request.nextUrl;
     const chatId = searchParams.get('chatId');
 
     if (chatId) {
