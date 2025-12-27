@@ -10,6 +10,8 @@ import {
 import { processMessage, processContact } from '@/lib/ai-state-machine';
 import { sendTelegramMessage } from '@/lib/telegram';
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: NextRequest) {
   try {
     const update: TelegramUpdate = await request.json();

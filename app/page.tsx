@@ -16,8 +16,13 @@ export default function HomePage() {
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
-    if (!files || files.length === 0) return;
+    console.log('handleFileUpload вызван, files:', files);
+    if (!files || files.length === 0) {
+      console.log('Файлы не выбраны');
+      return;
+    }
 
+    console.log('Начинаем загрузку, файлов:', files.length);
     setUploading(true);
 
     try {
@@ -46,6 +51,7 @@ export default function HomePage() {
           }
 
           const data = await response.json();
+          console.log('Фото загружено успешно:', data.url);
           
           const newCase: Case = {
             id: `case-${Date.now()}-${Math.random()}`,
@@ -53,7 +59,12 @@ export default function HomePage() {
             note: file.name
           };
           
-          setCases(prev => [...prev, newCase]);
+          console.log('Добавляем фото в cases:', newCase);
+          setCases(prev => {
+            const updated = [...prev, newCase];
+            console.log('Обновленный список cases:', updated);
+            return updated;
+          });
         }
       }
     } catch (error) {
