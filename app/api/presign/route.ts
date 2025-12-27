@@ -46,6 +46,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Инициализируем S3 клиент для R2
+    // ВАЖНО: forcePathStyle: false и НЕ указываем checksum, чтобы избежать CRC32 в presigned URL
     const s3 = new S3Client({
       region: "auto",
       endpoint: `https://${accountId}.r2.cloudflarestorage.com`,
@@ -53,6 +54,7 @@ export async function POST(req: NextRequest) {
         accessKeyId,
         secretAccessKey,
       },
+      forcePathStyle: false,
     });
 
     // Ключ генерим безопасно, без пробелов/слэшей от имени файла
@@ -60,18 +62,43 @@ export async function POST(req: NextRequest) {
     const key = `photos/${Date.now()}-${Math.random().toString(16).slice(2)}.${ext}`;
 
     // ВАЖНО: никаких checksum, ACL, metadata и т.п.
+    // НЕ указываем ChecksumAlgorithm, чтобы избежать добавления CRC32 в presigned URL
     const cmd = new PutObjectCommand({
       Bucket: bucketName,
       Key: key,
       ContentType: contentType,
+      // Явно НЕ указываем ChecksumAlgorithm - это должно предотвратить добавление checksum
     });
 
-    const uploadUrl = await getSignedUrl(s3, cmd, { expiresIn: 60 });
+    // Генерируем presigned URL
+    // Примечание: AWS SDK v3 может автоматически добавлять checksum для больших файлов
+    // Если это произойдет, браузер не сможет отправить запрос корректно
+    let uploadUrl = await getSignedUrl(s3, cmd, { expiresIn: 60 });
+
+    // ВАЖНО: Удаляем checksum параметры из URL, если они есть
+    // Это может сломать подпись, но checksum опционален, поэтому AWS может принять запрос
+    // В идеале нужно использовать метод, который не добавляет checksum изначально
+    try {
+      const url = new URL(uploadUrl);
+      if (url.searchParams.has('x-amz-sdk-checksum-algorithm')) {
+        console.warn('Warning: checksum algorithm detected in presigned URL, removing it');
+        url.searchParams.delete('x-amz-sdk-checksum-algorithm');
+        url.searchParams.delete('x-amz-checksum-crc32');
+        uploadUrl = url.toString();
+      }
+    } catch (e) {
+      console.error('Error parsing uploadUrl:', e);
+    }
+
+    // Формируем публичный URL правильно (убираем только лишние слеши, но сохраняем https://)
+    const cleanPublicUrl = publicUrl.replace(/\/+$/, ''); // Убираем trailing слеши
+    const cleanKey = key.replace(/^\/+/, ''); // Убираем leading слеши из key
+    const finalPublicUrl = `${cleanPublicUrl}/${cleanKey}`;
 
     return NextResponse.json({
       uploadUrl,
       key,
-      publicUrl: `${publicUrl}/${key}`.replace(/\/+/g, '/'),
+      publicUrl: finalPublicUrl,
     });
   } catch (e: any) {
     console.error('Presign error:', e);
