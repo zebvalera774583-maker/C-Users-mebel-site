@@ -3,8 +3,7 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 import { NextRequest, NextResponse } from "next/server";
-import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
-import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { createHash, createHmac } from "crypto";
 
 function safeExtFromMime(mime: string) {
   if (mime === "image/jpeg") return "jpg";
@@ -12,6 +11,97 @@ function safeExtFromMime(mime: string) {
   if (mime === "image/webp") return "webp";
   if (mime === "image/gif") return "gif";
   return "jpg";
+}
+
+/**
+ * Генерирует browser-friendly presigned PUT URL для Cloudflare R2
+ * Использует ручную генерацию AWS Signature V4 без checksum параметров
+ * 
+ * ВАЖНО: X-Amz-SignedHeaders=host (только host, без x-amz-content-sha256 и x-amz-date)
+ * X-Amz-Date остаётся в query параметрах (обязательно для SigV4)
+ */
+function generatePresignedUrl(
+  accountId: string,
+  bucketName: string,
+  key: string,
+  contentType: string,
+  accessKeyId: string,
+  secretAccessKey: string,
+  expiresIn: number = 3600
+): string {
+  const endpoint = `https://${accountId}.r2.cloudflarestorage.com`;
+  const host = `${bucketName}.${accountId}.r2.cloudflarestorage.com`;
+  const region = "auto";
+  
+  // Текущая дата в формате для подписи
+  const now = new Date();
+  const amzDate = now.toISOString().replace(/[:\-]|\.\d{3}/g, "");
+  const dateStamp = amzDate.substring(0, 8);
+
+  // Базовый URL
+  const baseUrl = `${endpoint}/${bucketName}/${encodeURIComponent(key).replace(/%2F/g, '/')}`;
+
+  // Query параметры для presigned URL
+  // X-Amz-Date обязателен для SigV4 (но НЕ включается в SignedHeaders)
+  const queryParams: Record<string, string> = {
+    'X-Amz-Algorithm': 'AWS4-HMAC-SHA256',
+    'X-Amz-Credential': `${accessKeyId}/${dateStamp}/${region}/s3/aws4_request`,
+    'X-Amz-Date': amzDate,
+    'X-Amz-Expires': expiresIn.toString(),
+    'X-Amz-SignedHeaders': 'host', // ТОЛЬКО host, без x-amz-content-sha256 и x-amz-date
+    'Content-Type': contentType,
+  };
+
+  // Сортируем параметры для канонической формы
+  const sortedParams = Object.keys(queryParams)
+    .sort()
+    .map((k) => `${encodeURIComponent(k)}=${encodeURIComponent(queryParams[k])}`)
+    .join('&');
+
+  // Канонический запрос
+  // Подписываем ТОЛЬКО host (x-amz-date уже в query, не подписываем x-amz-content-sha256)
+  const canonicalHeaders = `host:${host}\n`;
+
+  const signedHeaders = 'host'; // ТОЛЬКО host
+
+  const canonicalRequest = [
+    'PUT',
+    `/${bucketName}/${encodeURIComponent(key).replace(/%2F/g, '/')}`,
+    sortedParams,
+    canonicalHeaders,
+    signedHeaders,
+    'UNSIGNED-PAYLOAD', // Не требуем от браузера вычисления SHA256
+  ].join('\n');
+
+  // Строка для подписи
+  const algorithm = 'AWS4-HMAC-SHA256';
+  const credentialScope = `${dateStamp}/${region}/s3/aws4_request`;
+  const stringToSign = [
+    algorithm,
+    amzDate,
+    credentialScope,
+    createHash('sha256').update(canonicalRequest).digest('hex'),
+  ].join('\n');
+
+  // Генерируем подпись
+  const kDate = createHmac('sha256', `AWS4${secretAccessKey}`).update(dateStamp).digest();
+  const kRegion = createHmac('sha256', kDate).update(region).digest();
+  const kService = createHmac('sha256', kRegion).update('s3').digest();
+  const kSigning = createHmac('sha256', kService).update('aws4_request').digest();
+  const signature = createHmac('sha256', kSigning).update(stringToSign).digest('hex');
+
+  // Добавляем подпись к параметрам
+  const finalParams = {
+    ...queryParams,
+    'X-Amz-Signature': signature,
+  };
+
+  const finalQueryString = Object.keys(finalParams)
+    .sort()
+    .map((k) => `${encodeURIComponent(k)}=${encodeURIComponent(finalParams[k])}`)
+    .join('&');
+
+  return `${baseUrl}?${finalQueryString}`;
 }
 
 export async function POST(req: NextRequest) {
@@ -45,48 +135,28 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Инициализируем S3 клиент для R2
-    const s3 = new S3Client({
-      region: "auto",
-      endpoint: `https://${accountId}.r2.cloudflarestorage.com`,
-      credentials: {
-        accessKeyId,
-        secretAccessKey,
-      },
-      forcePathStyle: false,
-    });
-
     // Генерируем ключ файла
     const ext = safeExtFromMime(contentType);
     const key = `photos/${Date.now()}-${Math.random().toString(16).slice(2)}.${ext}`;
 
-    // Создаём команду для PUT (НЕ добавляем Body!)
-    const command = new PutObjectCommand({
-      Bucket: bucketName,
-      Key: key,
-      ContentType: contentType,
-    });
+    // Генерируем browser-friendly presigned URL без checksum параметров
+    const uploadUrl = generatePresignedUrl(
+      accountId,
+      bucketName,
+      key,
+      contentType,
+      accessKeyId,
+      secretAccessKey,
+      3600 // 1 час
+    );
 
-    // Remove any checksum-related middleware to make presigned PUT compatible with browser -> Cloudflare R2
-    try {
-      // middlewareStack.remove accepts (middlewareName) in some versions, and (predicate) in others.
-      // Use predicate form when available.
-      (command as any).middlewareStack.remove?.((name: string) =>
-        typeof name === "string" && name.toLowerCase().includes("checksum")
-      );
-      // Fallback: also try the common known name
-      (command as any).middlewareStack.remove?.("flexibleChecksumsMiddleware");
-      (command as any).middlewareStack.remove?.("flexibleChecksums");
-    } catch {
-      // Ignore errors if remove is not available or middleware not found
-    }
-
-    // Генерируем presigned URL
-    const uploadUrl = await getSignedUrl(s3, command, { expiresIn: 3600 });
-
-    // Серверная проверка и лог (временно для отладки)
-    if (uploadUrl.includes("x-amz-sdk-checksum-algorithm")) {
-      console.warn("Presigned URL still contains checksum algorithm param:", uploadUrl);
+    // Проверка: если URL содержит checksum - это ошибка
+    if (
+      uploadUrl.includes("x-amz-sdk-checksum-algorithm") ||
+      uploadUrl.includes("x-amz-checksum-") ||
+      uploadUrl.includes("checksum")
+    ) {
+      console.error("ERROR: Presigned URL contains checksum parameters:", uploadUrl);
     }
 
     // Формируем публичный URL
