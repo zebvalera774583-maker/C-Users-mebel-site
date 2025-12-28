@@ -6,175 +6,71 @@ import Link from 'next/link';
 type Case = {
   id: string;
   photos: string[];
-  caption: string;
+  note: string;
 };
 
 export default function HomePage() {
   const [cases, setCases] = useState<Case[]>([]);
   const [uploading, setUploading] = useState(false);
-  const [currentPhotoIndex, setCurrentPhotoIndex] = useState<{ [key: string]: number }>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [touchStart, setTouchStart] = useState<number | null>(null);
-  const [touchEnd, setTouchEnd] = useState<number | null>(null);
 
-  const triggerFileInput = () => {
-    fileInputRef.current?.click();
-  };
-
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
     if (!files || files.length === 0) return;
 
     setUploading(true);
-    const caseId = Date.now().toString();
-    const uploadedPhotos: string[] = [];
 
     try {
-      // Загружаем все выбранные файлы
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-        console.log(`Uploading file ${i + 1}/${files.length}:`, file.name, file.type, file.size);
+      // Загружаем файлы последовательно
+      for (const file of Array.from(files)) {
+        if (file.type.startsWith('image/')) {
+          const formData = new FormData();
+          formData.append('file', file);
 
-        // 1. Получаем presigned URL от сервера (key генерируется на сервере)
-        console.log('Getting presigned URL from /api/presign...');
-        const presignResponse = await fetch('/api/presign', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            contentType: file.type,
-            fileName: file.name,
-          }),
-        });
+          const response = await fetch('/api/upload', {
+            method: 'POST',
+            body: formData,
+          });
 
-        if (!presignResponse.ok) {
-          const text = await presignResponse.text();
-          let errorData;
-          try {
-            errorData = JSON.parse(text);
-          } catch (e) {
-            console.error('Failed to parse presign error response:', text);
-            throw new Error(`HTTP ${presignResponse.status}: ${presignResponse.statusText} - ${text}`);
+          if (!response.ok) {
+            let errorMessage = 'Неизвестная ошибка';
+            try {
+              const error = await response.json();
+              errorMessage = error.error || error.message || JSON.stringify(error);
+            } catch (e) {
+              errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+            }
+            console.error('Ошибка загрузки:', errorMessage);
+            alert(`Ошибка при загрузке ${file.name}: ${errorMessage}`);
+            continue;
           }
-          console.error('Presign error:', errorData);
-          throw new Error(errorData.error || 'Ошибка получения presigned URL');
+
+          const data = await response.json();
+          
+          const newCase: Case = {
+            id: `case-${Date.now()}-${Math.random()}`,
+            photos: [data.publicUrl],
+            note: file.name
+          };
+          
+          setCases(prev => [...prev, newCase]);
         }
-
-        const pres = await presignResponse.json();
-        console.log('Presign response:', pres);
-        const { uploadUrl, publicUrl } = pres;
-        
-        if (!uploadUrl || !publicUrl) {
-          console.error('Missing uploadUrl or publicUrl in presign response:', pres);
-          throw new Error('Неверный формат ответа от сервера');
-        }
-        
-        console.log('Presigned URL received:', uploadUrl.substring(0, 50) + '...');
-        console.log('Public URL:', publicUrl);
-
-        // 2. PUT напрямую в R2
-        console.log('Uploading file directly to R2...');
-        const uploadResponse = await fetch(uploadUrl, {
-          method: 'PUT',
-          body: file,
-          headers: {
-            'Content-Type': file.type, // только это
-          },
-        });
-
-        console.log('Upload response status:', uploadResponse.status, 'ok:', uploadResponse.ok);
-
-        // 204 (No Content) - это успех для PUT в R2
-        if (!uploadResponse.ok && uploadResponse.status !== 204) {
-          const text = await uploadResponse.text();
-          console.error('R2 upload error:', text, 'Status:', uploadResponse.status);
-          throw new Error(`Ошибка загрузки в R2: HTTP ${uploadResponse.status} - ${text}`);
-        }
-
-        console.log('Upload successful! Status:', uploadResponse.status, 'Public URL:', publicUrl);
-        uploadedPhotos.push(publicUrl);
-        console.log('Uploaded photos array:', uploadedPhotos);
       }
-
-      // Создаем новый кейс с загруженными фотографиями
-      console.log('All files uploaded, creating case with photos:', uploadedPhotos);
-      const newCase: Case = {
-        id: caseId,
-        photos: uploadedPhotos,
-        caption: '',
-      };
-
-      console.log('New case:', newCase);
-      setCases((prev) => {
-        const updated = [...prev, newCase];
-        console.log('Updated cases state:', updated);
-        return updated;
-      });
-      setCurrentPhotoIndex((prev) => ({ ...prev, [caseId]: 0 }));
     } catch (error) {
-      console.error('Ошибка загрузки:', error);
-      alert('Ошибка при загрузке фото. Попробуйте еще раз.');
+      console.error('Ошибка:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Неизвестная ошибка';
+      alert(`Произошла ошибка при загрузке файлов: ${errorMessage}`);
     } finally {
       setUploading(false);
-      // Сбрасываем input, чтобы можно было загрузить те же файлы снова
+      // Сброс input
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
     }
   };
 
-  const updateCaption = (caseId: string, caption: string) => {
-    setCases((prev) =>
-      prev.map((c) => (c.id === caseId ? { ...c, caption } : c))
-    );
-  };
-
-  const nextPhoto = (caseId: string) => {
-    const caseItem = cases.find((c) => c.id === caseId);
-    if (!caseItem) return;
-
-    setCurrentPhotoIndex((prev) => {
-      const current = prev[caseId] || 0;
-      const next = current < caseItem.photos.length - 1 ? current + 1 : 0;
-      return { ...prev, [caseId]: next };
-    });
-  };
-
-  const prevPhoto = (caseId: string) => {
-    const caseItem = cases.find((c) => c.id === caseId);
-    if (!caseItem) return;
-
-    setCurrentPhotoIndex((prev) => {
-      const current = prev[caseId] || 0;
-      const prevIndex = current > 0 ? current - 1 : caseItem.photos.length - 1;
-      return { ...prev, [caseId]: prevIndex };
-    });
-  };
-
-  const minSwipeDistance = 50;
-
-  const onTouchStart = (e: React.TouchEvent) => {
-    setTouchEnd(null);
-    setTouchStart(e.targetTouches[0].clientX);
-  };
-
-  const onTouchMove = (e: React.TouchEvent) => {
-    setTouchEnd(e.targetTouches[0].clientX);
-  };
-
-  const onTouchEnd = (caseId: string) => {
-    if (!touchStart || !touchEnd) return;
-    const distance = touchStart - touchEnd;
-    const isLeftSwipe = distance > minSwipeDistance;
-    const isRightSwipe = distance < -minSwipeDistance;
-
-    if (isLeftSwipe) {
-      nextPhoto(caseId);
-    }
-    if (isRightSwipe) {
-      prevPhoto(caseId);
-    }
+  const triggerFileInput = () => {
+    fileInputRef.current?.click();
   };
 
   return (
@@ -221,7 +117,7 @@ export default function HomePage() {
               Мебель на заказ<br />
               Комплектация
             </p>
-            <a href="#" className="profile-link">Москва - Питер - СОчи - Краснодар</a>
+            <a href="#" className="profile-link">Москва - Питер - Сочи - Краснодар</a>
           </div>
 
           <div className="profile-actions">
@@ -230,99 +126,24 @@ export default function HomePage() {
             <button className="action-btn">Связаться</button>
           </div>
 
-          {/* Upload Section */}
           <div className="upload-section">
             <input
-              ref={fileInputRef}
+              id="file-upload"
               type="file"
               accept="image/*"
               multiple
               onChange={handleFileUpload}
               style={{ display: 'none' }}
+              ref={fileInputRef}
             />
-            <button
-              className="upload-btn"
+            <button 
+              className="upload-btn" 
               onClick={triggerFileInput}
               disabled={uploading}
             >
               {uploading ? '⏳ Загрузка...' : '📷 Загрузить фото'}
             </button>
           </div>
-
-          {/* Display Cases */}
-          {cases.length > 0 && (
-            <div className="cases-section">
-              {cases.map((caseItem) => {
-                const currentIndex = currentPhotoIndex[caseItem.id] || 0;
-                return (
-                  <div key={caseItem.id} className="case-card">
-                    <div
-                      className="photo-slider"
-                      onTouchStart={onTouchStart}
-                      onTouchMove={onTouchMove}
-                      onTouchEnd={() => onTouchEnd(caseItem.id)}
-                    >
-                      <div
-                        className="photo-slides"
-                        style={{
-                          transform: `translateX(-${currentIndex * 100}%)`,
-                        }}
-                      >
-                        {caseItem.photos.map((photo, index) => (
-                          <div key={index} className="photo-slide">
-                            <img src={photo} alt={`Photo ${index + 1}`} />
-                          </div>
-                        ))}
-                      </div>
-
-                      {caseItem.photos.length > 1 && (
-                        <>
-                          <button
-                            className="slider-nav left"
-                            onClick={() => prevPhoto(caseItem.id)}
-                            aria-label="Предыдущее фото"
-                          >
-                            ‹
-                          </button>
-                          <button
-                            className="slider-nav right"
-                            onClick={() => nextPhoto(caseItem.id)}
-                            aria-label="Следующее фото"
-                          >
-                            ›
-                          </button>
-                          <div className="slider-indicator">
-                            {caseItem.photos.map((_, index) => (
-                              <span
-                                key={index}
-                                className={index === currentIndex ? 'active' : ''}
-                                onClick={() =>
-                                  setCurrentPhotoIndex((prev) => ({
-                                    ...prev,
-                                    [caseItem.id]: index,
-                                  }))
-                                }
-                              />
-                            ))}
-                          </div>
-                        </>
-                      )}
-                    </div>
-
-                    <div className="caption-input-wrapper">
-                      <input
-                        type="text"
-                        className="caption-input"
-                        placeholder="Добавить подпись..."
-                        value={caseItem.caption}
-                        onChange={(e) => updateCaption(caseItem.id, e.target.value)}
-                      />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
         </div>
       </main>
     </>
