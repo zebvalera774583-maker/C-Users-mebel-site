@@ -147,7 +147,7 @@ export async function POST(req: NextRequest) {
 
     // Генерируем browser-friendly presigned URL без checksum параметров
     // contentType НЕ передаём в presign - браузер отправит его как обычный header
-    const uploadUrl = generatePresignedUrl(
+    let uploadUrl = generatePresignedUrl(
       accountId,
       bucketName,
       key,
@@ -156,15 +156,21 @@ export async function POST(req: NextRequest) {
       3600 // 1 час
     );
 
-    // Проверка: если URL содержит checksum или Content-Type - это ошибка
+    // Защита: гарантированно убираем Content-Type из URL (даже если "его нет")
+    uploadUrl = uploadUrl.replace(/([?&])Content-Type=[^&]*&?/i, "$1").replace(/[?&]$/, "");
+
+    // Диагностика для подтверждения кода на проде
+    const hasContentTypeInUrl = uploadUrl.includes("Content-Type=");
+    const uploadUrlSample = uploadUrl.slice(0, 160);
+    console.log("PRESIGN_DEBUG", { hasContentTypeInUrl, uploadUrlSample });
+
+    // Проверка: если URL содержит checksum - это ошибка
     if (
       uploadUrl.includes("x-amz-sdk-checksum-algorithm") ||
       uploadUrl.includes("x-amz-checksum-") ||
-      uploadUrl.includes("checksum") ||
-      uploadUrl.includes("Content-Type") ||
-      uploadUrl.includes("content-type")
+      uploadUrl.includes("checksum")
     ) {
-      console.error("ERROR: Presigned URL contains invalid parameters:", uploadUrl);
+      console.error("ERROR: Presigned URL contains checksum parameters:", uploadUrl);
     }
 
     // Формируем публичный URL
@@ -176,6 +182,11 @@ export async function POST(req: NextRequest) {
       uploadUrl,
       key,
       publicUrl: finalPublicUrl,
+      debug: {
+        commit: process.env.VERCEL_GIT_COMMIT_SHA ?? "unknown",
+        hasContentTypeInUrl: hasContentTypeInUrl,
+        uploadUrlSample: uploadUrlSample,
+      },
     });
   } catch (e: any) {
     console.error('Presign error:', e);
