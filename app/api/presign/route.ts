@@ -19,12 +19,12 @@ function safeExtFromMime(mime: string) {
  * 
  * ВАЖНО: X-Amz-SignedHeaders=host (только host, без x-amz-content-sha256 и x-amz-date)
  * X-Amz-Date остаётся в query параметрах (обязательно для SigV4)
+ * Content-Type НЕ участвует в presign - браузер отправит его как обычный header
  */
 function generatePresignedUrl(
   accountId: string,
   bucketName: string,
   key: string,
-  contentType: string,
   accessKeyId: string,
   secretAccessKey: string,
   expiresIn: number = 3600
@@ -146,11 +146,11 @@ export async function POST(req: NextRequest) {
     const key = `photos/${Date.now()}-${Math.random().toString(16).slice(2)}.${ext}`;
 
     // Генерируем browser-friendly presigned URL без checksum параметров
+    // contentType НЕ передаём в presign - браузер отправит его как обычный header
     const uploadUrl = generatePresignedUrl(
       accountId,
       bucketName,
       key,
-      contentType,
       accessKeyId,
       secretAccessKey,
       3600 // 1 час
