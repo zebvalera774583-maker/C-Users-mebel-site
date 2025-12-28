@@ -46,7 +46,6 @@ export async function POST(req: NextRequest) {
     }
 
     // Инициализируем S3 клиент для R2
-    // ВАЖНО: forcePathStyle: false и НЕ указываем checksum, чтобы избежать CRC32 в presigned URL
     const s3 = new S3Client({
       region: "auto",
       endpoint: `https://${accountId}.r2.cloudflarestorage.com`,
@@ -57,27 +56,42 @@ export async function POST(req: NextRequest) {
       forcePathStyle: false,
     });
 
-    // Ключ генерим безопасно, без пробелов/слэшей от имени файла
+    // Генерируем ключ файла
     const ext = safeExtFromMime(contentType);
     const key = `photos/${Date.now()}-${Math.random().toString(16).slice(2)}.${ext}`;
 
-    // ВАЖНО: никаких checksum, ACL, metadata и т.п.
-    // НЕ указываем ChecksumAlgorithm, чтобы избежать добавления CRC32 в presigned URL
-    const cmd = new PutObjectCommand({
+    // Создаём команду для PUT (НЕ добавляем Body!)
+    const command = new PutObjectCommand({
       Bucket: bucketName,
       Key: key,
       ContentType: contentType,
-      // Явно НЕ указываем ChecksumAlgorithm - это должно предотвратить добавление checksum
     });
 
-    // Генерируем presigned URL
-    // ВАЖНО: Не удаляем параметры из URL после генерации - это ломает подпись AWS
-    // Если AWS SDK добавляет checksum автоматически, нужно использовать другой подход
-    const uploadUrl = await getSignedUrl(s3, cmd, { expiresIn: 3600 });
+    // Remove any checksum-related middleware to make presigned PUT compatible with browser -> Cloudflare R2
+    try {
+      // middlewareStack.remove accepts (middlewareName) in some versions, and (predicate) in others.
+      // Use predicate form when available.
+      (command as any).middlewareStack.remove?.((name: string) =>
+        typeof name === "string" && name.toLowerCase().includes("checksum")
+      );
+      // Fallback: also try the common known name
+      (command as any).middlewareStack.remove?.("flexibleChecksumsMiddleware");
+      (command as any).middlewareStack.remove?.("flexibleChecksums");
+    } catch {
+      // Ignore errors if remove is not available or middleware not found
+    }
 
-    // Формируем публичный URL правильно (убираем только лишние слеши, но сохраняем https://)
-    const cleanPublicUrl = publicUrl.replace(/\/+$/, ''); // Убираем trailing слеши
-    const cleanKey = key.replace(/^\/+/, ''); // Убираем leading слеши из key
+    // Генерируем presigned URL
+    const uploadUrl = await getSignedUrl(s3, command, { expiresIn: 3600 });
+
+    // Серверная проверка и лог (временно для отладки)
+    if (uploadUrl.includes("x-amz-sdk-checksum-algorithm")) {
+      console.warn("Presigned URL still contains checksum algorithm param:", uploadUrl);
+    }
+
+    // Формируем публичный URL
+    const cleanPublicUrl = publicUrl.replace(/\/+$/, '');
+    const cleanKey = key.replace(/^\/+/, '');
     const finalPublicUrl = `${cleanPublicUrl}/${cleanKey}`;
 
     return NextResponse.json({
