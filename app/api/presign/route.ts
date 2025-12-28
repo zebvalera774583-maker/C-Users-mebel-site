@@ -46,6 +46,7 @@ function generatePresignedUrl(
   // Query параметры для presigned URL
   // X-Amz-Date обязателен для SigV4 (но НЕ включается в SignedHeaders)
   // Content-Type участвует в query параметрах и подписи, но НЕ в SignedHeaders
+  // X-Amz-Content-Sha256 участвует в query параметрах и подписи, но НЕ в SignedHeaders
   const queryParams: Record<string, string> = {
     'X-Amz-Algorithm': 'AWS4-HMAC-SHA256',
     'X-Amz-Credential': `${accessKeyId}/${dateStamp}/${region}/s3/aws4_request`,
@@ -53,6 +54,7 @@ function generatePresignedUrl(
     'X-Amz-Expires': expiresIn.toString(),
     'X-Amz-SignedHeaders': 'host', // ТОЛЬКО host, без x-amz-content-sha256 и x-amz-date
     'Content-Type': contentType, // Участвует в query и подписи, но НЕ в SignedHeaders
+    'X-Amz-Content-Sha256': 'UNSIGNED-PAYLOAD', // Участвует в query и подписи, но НЕ в SignedHeaders
   };
 
   // Сортируем параметры для канонической формы
@@ -95,15 +97,11 @@ function generatePresignedUrl(
 
   // Формируем финальные параметры с явной типизацией
   // Content-Type участвует в query параметрах и подписи, но НЕ в SignedHeaders
-  const credential = `${accessKeyId}/${dateStamp}/${region}/s3/aws4_request`;
+  // X-Amz-Content-Sha256 участвует в query параметрах и подписи, но НЕ в SignedHeaders
+  // Берем все параметры из queryParams и добавляем Signature
   const finalParams: Record<string, string> = {
-    'X-Amz-Algorithm': algorithm,
-    'X-Amz-Credential': credential,
-    'X-Amz-Date': amzDate,
-    'X-Amz-Expires': expiresIn.toString(),
-    'X-Amz-SignedHeaders': signedHeaders,
+    ...queryParams,
     'X-Amz-Signature': signature,
-    'Content-Type': contentType, // Участвует в query и подписи, но НЕ в SignedHeaders
   };
 
   const finalQueryString = Object.keys(finalParams)
