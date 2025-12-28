@@ -17,14 +17,16 @@ function safeExtFromMime(mime: string) {
  * Генерирует browser-friendly presigned PUT URL для Cloudflare R2
  * Использует ручную генерацию AWS Signature V4 без checksum параметров
  * 
- * ВАЖНО: X-Amz-SignedHeaders=host (только host, без x-amz-content-sha256 и x-amz-date)
- * X-Amz-Date остаётся в query параметрах (обязательно для SigV4)
- * Content-Type НЕ участвует в presign - браузер отправит его как обычный header
+ * ВАЖНО: 
+ * - X-Amz-SignedHeaders=host (только host, без x-amz-content-sha256 и x-amz-date)
+ * - X-Amz-Date остаётся в query параметрах (обязательно для SigV4)
+ * - Content-Type участвует в query параметрах и подписи, но НЕ в SignedHeaders
  */
 function generatePresignedUrl(
   accountId: string,
   bucketName: string,
   key: string,
+  contentType: string,
   accessKeyId: string,
   secretAccessKey: string,
   expiresIn: number = 3600
@@ -43,13 +45,14 @@ function generatePresignedUrl(
 
   // Query параметры для presigned URL
   // X-Amz-Date обязателен для SigV4 (но НЕ включается в SignedHeaders)
-  // Content-Type НЕ включаем в query - браузер отправит его как обычный header
+  // Content-Type участвует в query параметрах и подписи, но НЕ в SignedHeaders
   const queryParams: Record<string, string> = {
     'X-Amz-Algorithm': 'AWS4-HMAC-SHA256',
     'X-Amz-Credential': `${accessKeyId}/${dateStamp}/${region}/s3/aws4_request`,
     'X-Amz-Date': amzDate,
     'X-Amz-Expires': expiresIn.toString(),
     'X-Amz-SignedHeaders': 'host', // ТОЛЬКО host, без x-amz-content-sha256 и x-amz-date
+    'Content-Type': contentType, // Участвует в query и подписи, но НЕ в SignedHeaders
   };
 
   // Сортируем параметры для канонической формы
@@ -91,7 +94,7 @@ function generatePresignedUrl(
   const signature = createHmac('sha256', kSigning).update(stringToSign).digest('hex');
 
   // Формируем финальные параметры с явной типизацией
-  // Content-Type НЕ включаем - браузер отправит его как обычный header
+  // Content-Type участвует в query параметрах и подписи, но НЕ в SignedHeaders
   const credential = `${accessKeyId}/${dateStamp}/${region}/s3/aws4_request`;
   const finalParams: Record<string, string> = {
     'X-Amz-Algorithm': algorithm,
@@ -100,6 +103,7 @@ function generatePresignedUrl(
     'X-Amz-Expires': expiresIn.toString(),
     'X-Amz-SignedHeaders': signedHeaders,
     'X-Amz-Signature': signature,
+    'Content-Type': contentType, // Участвует в query и подписи, но НЕ в SignedHeaders
   };
 
   const finalQueryString = Object.keys(finalParams)
@@ -146,18 +150,16 @@ export async function POST(req: NextRequest) {
     const key = `photos/${Date.now()}-${Math.random().toString(16).slice(2)}.${ext}`;
 
     // Генерируем browser-friendly presigned URL без checksum параметров
-    // contentType НЕ передаём в presign - браузер отправит его как обычный header
-    let uploadUrl = generatePresignedUrl(
+    // Content-Type участвует в query параметрах и подписи, но НЕ в SignedHeaders
+    const uploadUrl = generatePresignedUrl(
       accountId,
       bucketName,
       key,
+      contentType,
       accessKeyId,
       secretAccessKey,
       3600 // 1 час
     );
-
-    // Защита: гарантированно убираем Content-Type из URL (даже если "его нет")
-    uploadUrl = uploadUrl.replace(/([?&])Content-Type=[^&]*&?/i, "$1").replace(/[?&]$/, "");
 
     // Диагностика для подтверждения кода на проде
     const hasContentTypeInUrl = uploadUrl.includes("Content-Type=");
