@@ -43,13 +43,13 @@ function generatePresignedUrl(
 
   // Query параметры для presigned URL
   // X-Amz-Date обязателен для SigV4 (но НЕ включается в SignedHeaders)
+  // Content-Type НЕ включаем в query - браузер отправит его как обычный header
   const queryParams: Record<string, string> = {
     'X-Amz-Algorithm': 'AWS4-HMAC-SHA256',
     'X-Amz-Credential': `${accessKeyId}/${dateStamp}/${region}/s3/aws4_request`,
     'X-Amz-Date': amzDate,
     'X-Amz-Expires': expiresIn.toString(),
     'X-Amz-SignedHeaders': 'host', // ТОЛЬКО host, без x-amz-content-sha256 и x-amz-date
-    'Content-Type': contentType,
   };
 
   // Сортируем параметры для канонической формы
@@ -91,6 +91,7 @@ function generatePresignedUrl(
   const signature = createHmac('sha256', kSigning).update(stringToSign).digest('hex');
 
   // Формируем финальные параметры с явной типизацией
+  // Content-Type НЕ включаем - браузер отправит его как обычный header
   const credential = `${accessKeyId}/${dateStamp}/${region}/s3/aws4_request`;
   const finalParams: Record<string, string> = {
     'X-Amz-Algorithm': algorithm,
@@ -99,7 +100,6 @@ function generatePresignedUrl(
     'X-Amz-Expires': expiresIn.toString(),
     'X-Amz-SignedHeaders': signedHeaders,
     'X-Amz-Signature': signature,
-    'Content-Type': contentType,
   };
 
   const finalQueryString = Object.keys(finalParams)
@@ -156,13 +156,15 @@ export async function POST(req: NextRequest) {
       3600 // 1 час
     );
 
-    // Проверка: если URL содержит checksum - это ошибка
+    // Проверка: если URL содержит checksum или Content-Type - это ошибка
     if (
       uploadUrl.includes("x-amz-sdk-checksum-algorithm") ||
       uploadUrl.includes("x-amz-checksum-") ||
-      uploadUrl.includes("checksum")
+      uploadUrl.includes("checksum") ||
+      uploadUrl.includes("Content-Type") ||
+      uploadUrl.includes("content-type")
     ) {
-      console.error("ERROR: Presigned URL contains checksum parameters:", uploadUrl);
+      console.error("ERROR: Presigned URL contains invalid parameters:", uploadUrl);
     }
 
     // Формируем публичный URL
