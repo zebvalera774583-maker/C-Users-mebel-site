@@ -11,7 +11,7 @@
    - 3-5 уточняющих вопросов
    - Сбор контактных данных (имя, телефон)
    - Передача владельцу
-4. ✅ **Загрузка фото** - фото загружаются через веб-интерфейс с телефона в Cloudflare R2 (множественные фото, слайдер, подпись)
+4. ✅ **Загрузка фото** - фото загружаются через веб-интерфейс с телефона в Supabase Storage (множественные фото, слайдер, подпись)
 5. ✅ **Админка Inbox** - веб-интерфейс для просмотра и ответов на сообщения
 
 ## Установка
@@ -31,57 +31,31 @@ cp .env.example .env
 TELEGRAM_BOT_TOKEN=your_bot_token_here
 ```
 
-4. Настройте Cloudflare R2 для хранения фотографий. Добавьте в `.env`:
+4. Настройте Supabase Storage для хранения фотографий. Добавьте в `.env`:
 ```
-R2_ACCOUNT_ID=your_account_id
-R2_ACCESS_KEY_ID=your_access_key_id
-R2_SECRET_ACCESS_KEY=your_secret_access_key
-R2_BUCKET_NAME=ashot-zebelyan-photos
-R2_PUBLIC_URL=https://pub-f0552636863240bd98bc6780dd915dae.r2.dev
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+SUPABASE_ANON_KEY=your_anon_key
+SUPABASE_BUCKET_NAME=photos
 ```
 
 **Где найти эти данные:**
-- `R2_ACCOUNT_ID` - ваш Account ID из Cloudflare dashboard (находится в endpoint URL)
-- `R2_ACCESS_KEY_ID` и `R2_SECRET_ACCESS_KEY` - создайте через Cloudflare dashboard: R2 → API Tokens → Create API Token (Object Read & Write permissions)
-- `R2_BUCKET_NAME` - название вашего bucket в R2
-- `R2_PUBLIC_URL` - Public URL вашего bucket (включите Public Access в настройках bucket)
+- `SUPABASE_URL` - ваш Project URL из Supabase Dashboard (Settings → API)
+- `SUPABASE_SERVICE_ROLE_KEY` - Service Role Key из Supabase Dashboard (Settings → API, секция Service Role - **НЕ используйте в браузере!**)
+- `SUPABASE_ANON_KEY` - Anon/Public Key из Supabase Dashboard (Settings → API)
+- `SUPABASE_BUCKET_NAME` - название вашего bucket в Supabase Storage (по умолчанию `photos`)
 
-5. **⚠️ ОБЯЗАТЕЛЬНО: Настройте CORS Policy в R2 bucket:**
-   1. Cloudflare Dashboard → R2 Object Storage → `ashot-zebelyan-photos` → Settings → CORS Policy
-   2. Вставьте следующую политику:
-   ```json
-   [
-     {
-       "AllowedOrigins": [
-         "https://ashot-zebelyan-site.vercel.app"
-       ],
-       "AllowedMethods": [
-         "PUT",
-         "GET",
-         "HEAD",
-         "OPTIONS"
-       ],
-       "AllowedHeaders": [
-         "*"
-       ],
-       "ExposeHeaders": [
-         "ETag"
-       ],
-       "MaxAgeSeconds": 86400
-     }
-   ]
-   ```
-   3. Если у вас есть кастомный домен (например `ashot.zebelyan.com`) - добавьте его тоже в `AllowedOrigins`
-   4. Сохраните изменения
+**Настройка Supabase Storage:**
+1. Создайте проект на [supabase.com](https://supabase.com)
+2. Перейдите в Storage → Create a new bucket
+3. Создайте bucket с именем `photos` (или используйте другое имя и укажите его в `SUPABASE_BUCKET_NAME`)
+4. Сделайте bucket **публичным** (Public bucket: ON) для публичного доступа к файлам
+5. (Опционально) Настройте RLS политики для контроля доступа
 
-   **Почему это важно:** Без CORS Policy браузер блокирует прямую загрузку файлов в R2 через presigned URLs из-за CORS проверок.
-   
-   **❗ КРИТИЧНО:** Метод `OPTIONS` должен быть явно указан в `AllowedMethods`. Cloudflare R2 требует явного разрешения на OPTIONS (preflight запросы), даже если браузер автоматически отправляет их. Без OPTIONS presigned PUT запросы будут обрываться с ошибкой `ERR_CONNECTION_ABORTED`.
-
-   **⚠️ ВАЖНО: Тестирование загрузки фото:**
-   - Всегда тестируйте загрузку на **production домене**: `https://ashot-zebelyan-site.vercel.app`
-   - **НЕ используйте** preview домены (`*-vals-projects-*.vercel.app`) для тестирования загрузки - они не будут работать из-за CORS
-   - Если нужно тестировать на preview - добавьте конкретный preview домен в CORS Policy (но для production лучше использовать кастомный домен для R2)
+**⚠️ ВАЖНО:**
+- Service Role Key имеет полный доступ к проекту - используйте только на сервере
+- Anon Key используется для браузерной загрузки (если bucket публичный)
+- Для приватных buckets настройте RLS политики в Supabase Dashboard
 
 5. Запустите dev сервер:
 ```bash
@@ -93,7 +67,7 @@ npm run dev
 После деплоя на Vercel добавьте все переменные окружения в настройках проекта:
 1. Откройте проект в Vercel Dashboard
 2. Settings → Environment Variables
-3. Добавьте все переменные из `.env` файла (TELEGRAM_BOT_TOKEN, R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET_NAME, R2_PUBLIC_URL)
+3. Добавьте все переменные из `.env` файла (TELEGRAM_BOT_TOKEN, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, SUPABASE_ANON_KEY, SUPABASE_BUCKET_NAME)
 
 ## Настройка Telegram Webhook
 

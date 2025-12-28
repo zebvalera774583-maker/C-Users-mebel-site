@@ -1,8 +1,4 @@
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
-
-import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(request: NextRequest) {
@@ -25,45 +21,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Получаем переменные окружения для R2
-    const accountId = process.env.R2_ACCOUNT_ID;
-    const accessKeyId = process.env.R2_ACCESS_KEY_ID;
-    const secretAccessKey = process.env.R2_SECRET_ACCESS_KEY;
-    const bucketName = process.env.R2_BUCKET_NAME;
-    const publicUrl = process.env.R2_PUBLIC_URL;
+    // Получаем переменные окружения для Supabase
+    const supabaseUrl = process.env.SUPABASE_URL;
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    const bucketName = process.env.SUPABASE_BUCKET_NAME || 'photos';
 
-    if (!accountId || !accessKeyId || !secretAccessKey || !bucketName || !publicUrl) {
-      console.error('R2 credentials missing:', {
-        accountId: !!accountId,
-        accessKeyId: !!accessKeyId,
-        secretAccessKey: !!secretAccessKey,
-        bucketName: !!bucketName,
-        publicUrl: !!publicUrl,
-      });
+    if (!supabaseUrl || !supabaseServiceKey) {
       return NextResponse.json(
-        { error: 'Конфигурация R2 не настроена' },
+        { error: 'Конфигурация Supabase не настроена' },
         { status: 500 }
       );
     }
 
-    // Инициализируем S3 клиент для R2
-    const endpoint = `https://${accountId}.r2.cloudflarestorage.com`;
-    console.log('R2 Configuration:', {
-      endpoint,
-      bucketName,
-      accessKeyId: accessKeyId.substring(0, 8) + '...', // Логируем только начало для безопасности
-      hasSecret: !!secretAccessKey,
-    });
-
-    const s3Client = new S3Client({
-      region: 'auto',
-      endpoint: endpoint,
-      credentials: {
-        accessKeyId,
-        secretAccessKey,
-      },
-      forcePathStyle: false, // R2 использует virtual-hosted-style URLs
-    });
+    // Создаем Supabase клиент с service role key
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     // Генерируем уникальное имя файла
     const timestamp = Date.now();
@@ -71,52 +42,40 @@ export async function POST(request: NextRequest) {
     const fileExtension = file.name.split('.').pop() || 'jpg';
     const fileName = `photos/${timestamp}-${randomString}.${fileExtension}`;
 
-    console.log('Uploading file:', fileName, 'to bucket:', bucketName);
-
-    // Конвертируем File в Buffer
+    // Конвертируем File в ArrayBuffer для загрузки
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
-    // Загружаем файл в R2
-    try {
-      const result = await s3Client.send(
-        new PutObjectCommand({
-          Bucket: bucketName,
-          Key: fileName,
-          Body: buffer,
-          ContentType: file.type,
-        })
-      );
-      console.log('Upload successful:', result);
-    } catch (uploadError) {
-      console.error('R2 Upload error details:', {
-        name: uploadError instanceof Error ? uploadError.name : 'Unknown',
-        message: uploadError instanceof Error ? uploadError.message : String(uploadError),
-        code: (uploadError as any)?.$metadata?.httpStatusCode,
-        requestId: (uploadError as any)?.$metadata?.requestId,
+    // Загружаем файл в Supabase Storage
+    const { data, error } = await supabase.storage
+      .from(bucketName)
+      .upload(fileName, buffer, {
+        contentType: file.type,
+        upsert: false, // не перезаписывать существующие файлы
       });
-      throw uploadError;
+
+    if (error) {
+      console.error('Ошибка загрузки в Supabase:', error);
+      return NextResponse.json(
+        { 
+          error: 'Ошибка при загрузке файла',
+          details: error.message 
+        },
+        { status: 500 }
+      );
     }
 
     // Формируем публичный URL
-    const publicFileUrl = `${publicUrl}/${fileName}`;
+    const publicUrl = `${supabaseUrl}/storage/v1/object/public/${bucketName}/${fileName}`;
 
     return NextResponse.json({
       success: true,
-      url: publicFileUrl,
+      url: publicUrl,
       fileName: fileName,
     });
   } catch (error) {
     console.error('Ошибка загрузки файла:', error);
     const errorMessage = error instanceof Error ? error.message : 'Неизвестная ошибка';
-    
-    // Логируем детали для отладки
-    if (error instanceof Error) {
-      console.error('Error name:', error.name);
-      console.error('Error message:', error.message);
-      console.error('Error stack:', error.stack);
-    }
-    
     return NextResponse.json(
       { 
         error: 'Ошибка при загрузке файла',
