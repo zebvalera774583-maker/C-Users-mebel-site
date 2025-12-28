@@ -22,8 +22,10 @@ export async function POST(req: Request) {
     const arrayBuffer = await file.arrayBuffer();
     const bytes = new Uint8Array(arrayBuffer);
 
+    const bucketName = process.env.SUPABASE_BUCKET_NAME || process.env.SUPABASE_BUCKET || "photos";
+
     const { error } = await supabase.storage
-      .from(process.env.SUPABASE_BUCKET || "photos")
+      .from(bucketName)
       .upload(filePath, bytes, {
         contentType: file.type || "application/octet-stream",
         upsert: false,
@@ -35,7 +37,7 @@ export async function POST(req: Request) {
     }
 
     const { data } = supabase.storage
-      .from(process.env.SUPABASE_BUCKET || "photos")
+      .from(bucketName)
       .getPublicUrl(filePath);
 
     return NextResponse.json({
