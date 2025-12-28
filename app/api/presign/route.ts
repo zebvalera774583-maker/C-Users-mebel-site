@@ -32,7 +32,7 @@ function generatePresignedUrl(
   expiresIn: number = 3600
 ): string {
   const endpoint = `https://${accountId}.r2.cloudflarestorage.com`;
-  const host = `${bucketName}.${accountId}.r2.cloudflarestorage.com`;
+  const host = new URL(endpoint).host;
   const region = "auto";
   
   // Текущая дата в формате для подписи
