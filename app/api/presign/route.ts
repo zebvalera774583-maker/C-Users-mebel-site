@@ -90,10 +90,16 @@ function generatePresignedUrl(
   const kSigning = createHmac('sha256', kService).update('aws4_request').digest();
   const signature = createHmac('sha256', kSigning).update(stringToSign).digest('hex');
 
-  // Добавляем подпись к параметрам
-  const finalParams = {
-    ...queryParams,
+  // Формируем финальные параметры с явной типизацией
+  const credential = `${accessKeyId}/${dateStamp}/${region}/s3/aws4_request`;
+  const finalParams: Record<string, string> = {
+    'X-Amz-Algorithm': algorithm,
+    'X-Amz-Credential': credential,
+    'X-Amz-Date': amzDate,
+    'X-Amz-Expires': expiresIn.toString(),
+    'X-Amz-SignedHeaders': signedHeaders,
     'X-Amz-Signature': signature,
+    'Content-Type': contentType,
   };
 
   const finalQueryString = Object.keys(finalParams)
